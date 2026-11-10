@@ -30,7 +30,7 @@ export default function AffiliationBiasSelector({
 
   if (activePackType === 'explorer') {
     return (
-      <div className="p-2.5 sm:p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/60 flex flex-col gap-2">
+      <div className="w-full p-2.5 sm:p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/60 flex flex-col gap-2">
         <div className="flex flex-col xs:flex-row xs:items-center justify-between text-xs text-neutral-400 gap-1">
           <span className="flex items-center gap-1.5 font-semibold text-neutral-300 text-[11px] sm:text-xs">
             <Shapes size={13} className={theme.text} />
@@ -43,8 +43,7 @@ export default function AffiliationBiasSelector({
           </span>
         </div>
 
-        {/* 3 columns on mobile, 5 on desktop */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-2 text-xs">
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 text-xs w-full">
           <button
             type="button"
             onClick={() => onSelectShapeBias(undefined)}
@@ -88,7 +87,7 @@ export default function AffiliationBiasSelector({
 
   if (activePackType === 'degen') {
     return (
-      <div className="p-2.5 sm:p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/60 flex flex-col gap-2">
+      <div className="w-full p-2.5 sm:p-3.5 rounded-xl border border-neutral-800 bg-neutral-950/60 flex flex-col gap-2">
         <div className="flex flex-col xs:flex-row xs:items-center justify-between text-xs text-neutral-400 gap-1">
           <span className="flex items-center gap-1.5 font-semibold text-neutral-300 text-[11px] sm:text-xs">
             <Layers size={13} className={theme.text} />
@@ -101,8 +100,7 @@ export default function AffiliationBiasSelector({
           </span>
         </div>
 
-        {/* 3 columns on mobile, 6 on desktop */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 text-xs">
+        <div className="grid grid-cols-6 gap-1.5 sm:gap-2 text-xs w-full">
           <button
             type="button"
             onClick={() => onSelectProjectBias(undefined)}

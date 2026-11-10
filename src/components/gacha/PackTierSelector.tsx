@@ -2,7 +2,7 @@
 // src/components/gacha/PackTierSelector.tsx
 
 import React from 'react';
-import { type PackType, PACK_CONFIGS } from '@/store/useShowcaseStore';
+import { type PackType } from '@/store/useShowcaseStore';
 import { THEME } from './gachaTheme';
 
 interface PackTierSelectorProps {
@@ -19,7 +19,7 @@ export default function PackTierSelector({
   onSelectPack,
 }: PackTierSelectorProps) {
   return (
-    <div className="grid grid-cols-3 gap-1.5 sm:gap-3 w-full">
+    <div className="grid grid-cols-3 gap-1.5 sm:gap-3 w-full max-w-xl mx-auto">
       {PACK_TYPES.map((type) => {
         const count = unopenedPacks[type] || 0;
         const isSelected = activePackType === type;
@@ -41,7 +41,7 @@ export default function PackTierSelector({
               {cleanName}
               <span className="hidden sm:inline"> Pack</span>
             </span>
-            <span className={`text-[9px] sm:text-[10px] font-mono px-1.5 py-0.2 sm:px-2 sm:py-0.5 rounded-full border shrink-0 ${packTheme.badge}`}>
+            <span className={`text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded-full border shrink-0 ${packTheme.badge}`}>
               x{count}
             </span>
           </button>

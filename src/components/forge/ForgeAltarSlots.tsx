@@ -1,3 +1,4 @@
+// Run inside: frontend/
 // src/components/forge/ForgeAltarSlots.tsx
 
 import React from 'react';
@@ -45,11 +46,11 @@ export default function ForgeAltarSlots({
   };
 
   return (
-    <div className="relative w-full max-w-md mx-auto pt-1 flex flex-col items-center">
+    <div className="relative w-full max-w-xl mx-auto pt-1 flex flex-col items-center">
       {/* Trio Arc Interactive Badges */}
       <motion.div
         animate={getStrikeVariant()}
-        className="relative z-10 grid grid-cols-3 gap-4 sm:gap-6 w-full px-2"
+        className="relative z-10 grid grid-cols-3 gap-3 sm:gap-6 w-full px-1 sm:px-2"
         style={{ willChange: 'transform, opacity' }}
       >
         {[0, 1, 2].map((index) => {
@@ -63,7 +64,7 @@ export default function ForgeAltarSlots({
             >
               {badge ? (
                 <div
-                  className="relative group w-full aspect-[3/4] max-w-[100px] rounded-xl transition-all shadow-lg cursor-pointer"
+                  className="relative group w-full aspect-[3/4] max-w-[100px] xs:max-w-[115px] sm:max-w-[125px] rounded-xl transition-all shadow-lg cursor-pointer"
                   onClick={() => strikeStep === 0 && onRemoveBadge(index)}
                   title="Click anywhere on slot to remove badge"
                 >
@@ -87,7 +88,7 @@ export default function ForgeAltarSlots({
                         e.stopPropagation();
                         onRemoveBadge(index);
                       }}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-950/95 border border-red-500/80 text-red-300 hover:bg-red-800 hover:text-white hover:border-red-300 flex items-center justify-center shadow-md transition-all cursor-pointer z-30 hover:scale-110 active:scale-90"
+                      className="absolute top-1 right-1 w-4.5 h-4.5 sm:w-5 sm:h-5 rounded-full bg-red-950/95 border border-red-500/80 text-red-300 hover:bg-red-800 hover:text-white hover:border-red-300 flex items-center justify-center shadow-md transition-all cursor-pointer z-30 hover:scale-110 active:scale-90"
                       title="Remove badge from forge"
                     >
                       <X size={10} strokeWidth={3} />
@@ -96,15 +97,15 @@ export default function ForgeAltarSlots({
                 </div>
               ) : (
                 <div
-                  className="w-full aspect-[3/4] max-w-[100px] rounded-xl border border-dashed border-neutral-800 bg-neutral-950/70 flex flex-col items-center justify-center p-2 text-center transition-all hover:border-neutral-700 hover:bg-neutral-900/40 select-none shadow-inner"
+                  className="w-full aspect-[3/4] max-w-[100px] xs:max-w-[115px] sm:max-w-[125px] rounded-xl border border-dashed border-neutral-800 bg-neutral-950/70 flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all hover:border-neutral-700 hover:bg-neutral-900/40 select-none shadow-inner"
                 >
-                  <div className="w-6 h-6 rounded-md border border-neutral-800 bg-neutral-900/60 flex items-center justify-center mb-1.5 opacity-60">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md border border-neutral-800 bg-neutral-900/60 flex items-center justify-center mb-1 sm:mb-1.5 opacity-60">
                     <Sparkles size={11} className="text-neutral-500" />
                   </div>
-                  <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-neutral-500">
+                  <span className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase text-neutral-500">
                     Slot {index + 1}
                   </span>
-                  <span className="text-[9px] text-neutral-600 mt-0.5">Empty</span>
+                  <span className="text-[8px] sm:text-[9px] text-neutral-600 mt-0.5">Empty</span>
                 </div>
               )}
             </div>

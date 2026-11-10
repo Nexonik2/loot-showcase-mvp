@@ -1,15 +1,16 @@
+// Run inside: frontend/
 // src/components/dashboard/ShowcaseView.tsx
 
 import React, { useMemo } from 'react';
 import BadgeCard from '@/components/BadgeCard';
-import { useArchiverStore, INSCRIBE_SETTINGS } from '@/store/useShowcaseStore';
+import { useShowcaseStore, INSCRIBE_SETTINGS } from '@/store/useShowcaseStore';
 import {
   ADJACENCY_MAP,
   BASE_TIER_YIELDS,
   calculateShowcaseTotalYield,
   type SynergyType,
 } from '@/lib/inscriptionYield';
-import { Droplet, Layers, AlertTriangle, Check, ShieldAlert } from 'lucide-react';
+import { Droplet, AlertTriangle, Check, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const getSynergyStroke = (type: SynergyType): string => {
@@ -33,17 +34,17 @@ const getSynergyBadgeClass = (multiplier: number): string => {
 };
 
 export default function ShowcaseView() {
-  const slots = useArchiverStore((state) => state.slots);
-  const traits = useArchiverStore((state) => state.traits);
-  const inkBalance = useArchiverStore((state) => state.inkBalance);
-  const badges = useArchiverStore((state) => state.badges);
+  const slots = useShowcaseStore((state) => state.slots);
+  const traits = useShowcaseStore((state) => state.traits);
+  const inkBalance = useShowcaseStore((state) => state.inkBalance);
+  const badges = useShowcaseStore((state) => state.badges);
 
   // Staging state from store
-  const stagedSlotId = useArchiverStore((state) => state.stagedSlotId);
-  const stagedBadgeId = useArchiverStore((state) => state.stagedBadgeId);
-  const setStagedSlotId = useArchiverStore((state) => state.setStagedSlotId);
-  const confirmInscription = useArchiverStore((state) => state.confirmInscription);
-  const cancelInscription = useArchiverStore((state) => state.cancelInscription);
+  const stagedSlotId = useShowcaseStore((state) => state.stagedSlotId);
+  const stagedBadgeId = useShowcaseStore((state) => state.stagedBadgeId);
+  const setStagedSlotId = useShowcaseStore((state) => state.setStagedSlotId);
+  const confirmInscription = useShowcaseStore((state) => state.confirmInscription);
+  const cancelInscription = useShowcaseStore((state) => state.cancelInscription);
 
   const yieldReport = useMemo(() => calculateShowcaseTotalYield(slots), [slots]);
 
@@ -102,10 +103,10 @@ export default function ShowcaseView() {
   const isPipelineActive = stagedSlotId !== null || stagedBadgeId !== null;
 
   return (
-    <div className="min-h-[500px] border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5">
+    <div className="min-h-[500px] border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5 w-full">
       
-      {/* 2. Trait Matrix */}
-      <div className="grid grid-cols-3 gap-2.5 w-full">
+      {/* 1. Trait Matrix */}
+      <div className="grid grid-cols-3 gap-2.5 w-full max-w-xl mx-auto">
         {Object.entries(traits).map(([key, value]) => (
           <div key={key} className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80 text-center">
             <div className="text-[10px] text-neutral-500 uppercase tracking-wider font-mono mb-0.5">{key}</div>
@@ -114,8 +115,8 @@ export default function ShowcaseView() {
         ))}
       </div>
 
-      {/* 3. Daily Bonus Ink Telemetry Bar (2-Row Layout) */}
-      <div className="w-full max-w-md bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 shadow-md flex items-center gap-3.5">
+      {/* 2. Daily Bonus Ink Telemetry Bar (2-Row Layout) */}
+      <div className="w-full max-w-xl bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 shadow-md flex items-center gap-3.5 mx-auto">
         <div className="w-10 h-10 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
           <Droplet size={20} />
         </div>
@@ -141,9 +142,9 @@ export default function ShowcaseView() {
         </div>
       </div>
 
-      {/* 4. Inline Inscription Action Bar */}
+      {/* 3. Inline Inscription Action Bar */}
       {isPipelineActive && (
-        <div className="w-full max-w-md rounded-xl border border-neutral-700 bg-neutral-900/95 p-3 shadow-lg flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="w-full max-w-xl rounded-xl border border-neutral-700 bg-neutral-900/95 p-3 shadow-lg flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 mx-auto">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <span className="px-2 py-0.5 rounded-md bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-mono font-bold">
@@ -249,8 +250,8 @@ export default function ShowcaseView() {
         </div>
       )}
 
-      {/* 5. 2x4 Inscription Matrix with SVG Conduit Connectors */}
-      <div className="relative w-full max-w-md mx-auto mt-1 p-2">
+      {/* 4. 2x4 Inscription Matrix with SVG Conduit Connectors */}
+      <div className="relative w-full max-w-xl mx-auto mt-1 p-2">
         {/* SVG Conduits strictly on z-0 layer */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none z-0"
@@ -360,7 +361,7 @@ export default function ShowcaseView() {
         </div>
       </div>
 
-      {/* 6. Placement Guide Footer */}
+      {/* 5. Placement Guide Footer */}
       <div className="flex items-center justify-center gap-3 sm:gap-4 text-[10px] font-mono text-neutral-500 pt-1">
         <span className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Project (+25%)

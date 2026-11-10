@@ -1,8 +1,9 @@
+// Run inside: frontend/
 // src/components/forge/ForgeBatchControls.tsx
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Plus, Minus, Wand2, Droplet, Trash2 } from 'lucide-react';
+import { RotateCcw, Plus, Minus, Wand2, Droplet } from 'lucide-react';
 
 interface ForgeBatchControlsProps {
   batchCount: number;
@@ -45,7 +46,7 @@ export default function ForgeBatchControls({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col gap-2 sm:gap-2.5">
+    <div className="w-full max-w-xl mx-auto flex flex-col gap-2 sm:gap-2.5">
       {/* Top Utility Row: Wrapped gracefully for 320px */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-1.5 flex-wrap">

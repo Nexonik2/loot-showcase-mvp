@@ -1,3 +1,4 @@
+// Run inside: frontend/
 // src/components/forge/ForgeAnvilTrigger.tsx
 
 import React from 'react';
@@ -49,7 +50,7 @@ export default function ForgeAnvilTrigger({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col items-center gap-2 mt-1">
+    <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-2 mt-1">
       <motion.div
         className="w-full"
         whileTap={isReady ? { scale: 0.98 } : undefined}
@@ -90,9 +91,9 @@ export default function ForgeAnvilTrigger({
             />
           </motion.div>
 
-          <span>{getButtonText()}</span>
+          <span className="text-[11px] sm:text-xs truncate">{getButtonText()}</span>
 
-          {isReady && <Sparkles size={14} className="text-emerald-300 animate-pulse" />}
+          {isReady && <Sparkles size={14} className="text-emerald-300 animate-pulse shrink-0" />}
         </Button>
       </motion.div>
 

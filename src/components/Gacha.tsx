@@ -1,6 +1,9 @@
+// Run inside: frontend/
+// src/components/Gacha.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
-  useArchiverStore,
+  useShowcaseStore,
   type Badge,
   type PackType,
   type BadgeShape,
@@ -21,7 +24,9 @@ export default function GachaShrine({
   selectedPackType: controlledPackType,
   onSelectPackType,
 }: GachaShrineProps) {
-  const { inkBalance, unopenedPacks, buyPacks } = useArchiverStore();
+  const inkBalance = useShowcaseStore((state) => state.inkBalance);
+  const unopenedPacks = useShowcaseStore((state) => state.unopenedPacks);
+  const buyPacks = useShowcaseStore((state) => state.buyPacks);
 
   const [internalPackType, setInternalPackType] = useState<PackType>('explorer');
   const activePackType = controlledPackType ?? internalPackType;
@@ -66,7 +71,7 @@ export default function GachaShrine({
   };
 
   return (
-    <div className="flex flex-col gap-5 p-4 min-h-[500px]">
+    <div className="min-h-[500px] border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5 w-full">
       {/* 1. Pack Tier Selector */}
       <PackTierSelector
         activePackType={activePackType}
@@ -76,21 +81,23 @@ export default function GachaShrine({
 
       {/* 2. Opening Stage (Active 3-Tap Ritual & Reveal) vs Altar Controls */}
       {isOpeningActive ? (
-        <PackOpeningStage
-          packType={activePackType}
-          batchCount={batchCount}
-          affiliation={{
-            shape: activePackType === 'explorer' ? selectedShapeBias : undefined,
-            projectId: activePackType === 'degen' ? selectedProjectBias : undefined,
-          }}
-          onClose={() => setIsOpeningActive(false)}
-          onBatchSummary={(pulls) => {
-            setIsOpeningActive(false);
-            setBatchLoot(pulls);
-          }}
-        />
+        <div className="w-full max-w-xl mx-auto">
+          <PackOpeningStage
+            packType={activePackType}
+            batchCount={batchCount}
+            affiliation={{
+              shape: activePackType === 'explorer' ? selectedShapeBias : undefined,
+              projectId: activePackType === 'degen' ? selectedProjectBias : undefined,
+            }}
+            onClose={() => setIsOpeningActive(false)}
+            onBatchSummary={(pulls) => {
+              setIsOpeningActive(false);
+              setBatchLoot(pulls);
+            }}
+          />
+        </div>
       ) : (
-        <>
+        <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-4 sm:gap-5">
           {/* Shape / Project Affiliation Pickers */}
           <AffiliationBiasSelector
             activePackType={activePackType}
@@ -110,16 +117,18 @@ export default function GachaShrine({
             onStartOpening={() => setIsOpeningActive(true)}
             onQuickBuyAndOpen={handleQuickBuyAndOpen}
           />
-        </>
+        </div>
       )}
 
       {/* 3. Batch Loot Summary Area */}
       {!isOpeningActive && batchLoot && (
-        <BatchLootSummary
-          pulls={batchLoot}
-          packType={activePackType}
-          onClear={() => setBatchLoot(null)}
-        />
+        <div className="w-full max-w-xl mx-auto">
+          <BatchLootSummary
+            pulls={batchLoot}
+            packType={activePackType}
+            onClear={() => setBatchLoot(null)}
+          />
+        </div>
       )}
     </div>
   );

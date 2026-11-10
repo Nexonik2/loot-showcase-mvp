@@ -1,8 +1,9 @@
+// Run inside: frontend/
 // src/components/Forge.tsx
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useArchiverStore, type Badge } from '@/store/useShowcaseStore';
+import { useShowcaseStore, type Badge } from '@/store/useShowcaseStore';
 import {
   ForgeAltarSlots,
   ForgeCrucibleNode,
@@ -17,7 +18,6 @@ import {
   findBatchBadgeIds,
 } from '@/lib/forgeHeuristics';
 import { forgeAudio } from '@/lib/forgeAudio';
-import { Hammer } from 'lucide-react';
 
 export interface ForgeProps {
   selectedBadgeIds: string[];
@@ -34,7 +34,9 @@ export default function Forge({
   onSelectBadgeIds,
   isShaking = false,
 }: ForgeProps) {
-  const { inkBalance, badges, forgeBadges } = useArchiverStore();
+  const inkBalance = useShowcaseStore((state) => state.inkBalance);
+  const badges = useShowcaseStore((state) => state.badges);
+  const forgeBadges = useShowcaseStore((state) => state.forgeBadges);
 
   const [batchCount, setBatchCount] = useState<number>(1);
   const [isForging, setIsForging] = useState<boolean>(false);
@@ -154,7 +156,7 @@ export default function Forge({
         if (minted) results.push(minted);
       }
 
-      const newInk = useArchiverStore.getState().inkBalance;
+      const newInk = useShowcaseStore.getState().inkBalance;
       const actualSpent = initialInk - newInk;
       const saved = Math.max(0, totalCost - actualSpent);
 
@@ -175,9 +177,8 @@ export default function Forge({
     <motion.div
       animate={isShaking ? { x: [-5, 5, -4, 4, -2, 2, 0] } : { x: 0 }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className="flex flex-col gap-2 p-4 min-h-[500px]"
+      className="min-h-[500px] border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-3 sm:gap-4 w-full"
     >
-
       {/* 1. Altar Trio Arc & Bottom-Connecting Conduits */}
       <ForgeAltarSlots
         slots={[slottedBadges[0] || null, slottedBadges[1] || null, slottedBadges[2] || null]}

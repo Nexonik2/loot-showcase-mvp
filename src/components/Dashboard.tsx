@@ -1,5 +1,3 @@
-// src/components/Dashboard.tsx
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { LayoutDashboard } from 'lucide-react';
 import { useArchiverStore, type Badge, type PackType } from '@/store/useShowcaseStore';
@@ -23,25 +21,16 @@ export default function Dashboard() {
     unseenBadgeIds = [],
     markBadgesAsSeen,
     injectTestBundle,
-    setStagedBadgeId,
   } = useArchiverStore();
 
   // Auto-inject starting resources on initial mount/reload
   const hasInjectedRef = useRef(false);
-    useEffect(() => {
-      if (!hasInjectedRef.current) {
-        hasInjectedRef.current = true;
-        
-        const isBrandNewSession = 
-          Object.keys(badges).length === 0 && 
-          inkBalance === 0 && 
-          Object.values(unopenedPacks).every((count) => count === 0);
-
-        if (isBrandNewSession) {
-          injectTestBundle();
-        }
-      }
-    }, [badges, inkBalance, unopenedPacks, injectTestBundle]);
+  useEffect(() => {
+    if (!hasInjectedRef.current) {
+      hasInjectedRef.current = true;
+      injectTestBundle();
+    }
+  }, [injectTestBundle]);
 
   // Tab & Selection States
   const [activeTab, setActiveTab] = useState<'showcase' | 'forge' | 'gacha'>('showcase');
@@ -49,9 +38,7 @@ export default function Dashboard() {
   const [selectedGachaPack, setSelectedGachaPack] = useState<PackType>('explorer');
   const [selectedForgeIds, setSelectedForgeIds] = useState<string[]>([]);
   const [isForgeShaking, setIsForgeShaking] = useState(false);
-
-  // Rewards Modal State
-  const [isRewardsOpen, setIsRewardsOpen] = useState<boolean>(false);
+  const [isRewardsOpen, setIsRewardsOpen] = useState(false);
 
   // Inventory Totals
   const totalBadges = Object.keys(badges).length;
@@ -94,13 +81,12 @@ export default function Dashboard() {
       return;
     }
 
-    // 2. Showcase Tab Handling: Toggle staged badge for inline inscription
+    // 2. Showcase Tab Handling (Routes directly to Archiver Staging)
     if (activeTab === 'showcase') {
-      const nextAvailableId = stack.ids.find((id) => !selectedForgeIds.includes(id)) ?? stack.ids[0];
-      if (nextAvailableId) {
-        setStagedBadgeId(nextAvailableId);
+      const setStagedBadgeId = useArchiverStore.getState().setStagedBadgeId;
+      if (stack.ids.length > 0) {
+        setStagedBadgeId(stack.ids[0]);
       }
-      return;
     }
   };
 
@@ -129,120 +115,121 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-50 font-sans p-6">
-      {/* 1. Global Navigation & News Ticker */}
-      <DashboardHeader
-        currentDay={currentDay}
-        inkBalance={inkBalance}
-        onOpenRewards={() => setIsRewardsOpen(true)}
-      />
+    <div className="min-h-screen bg-black text-neutral-50 font-sans">
+      {/* Global Viewport Shell Centered with 1536px (2xl) Max Width */}
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+        {/* 1. Global Navigation & News Ticker */}
+        <DashboardHeader
+          currentDay={currentDay}
+          inkBalance={inkBalance}
+          onOpenRewards={() => setIsRewardsOpen(true)}
+        />
 
-      {/* 2. Main 50/50 Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
-        {/* Left Column: Persistent Inventory & Depot */}
-        <section className="lg:col-span-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-neutral-300 flex items-center gap-2 tracking-wider">
-              <LayoutDashboard size={18} className="text-neutral-500" />
-              YOUR INVENTORY
-            </h2>
-          </div>
+        {/* 2. Main 50/50 Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative items-start">
+          {/* Left Column: Persistent Inventory & Depot */}
+          <section className="lg:col-span-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-neutral-300 flex items-center gap-2 tracking-wider">
+                <LayoutDashboard size={18} className="text-neutral-500" />
+                YOUR INVENTORY
+              </h2>
+            </div>
 
-          {/* Inventory Segmented Toggle */}
-          <div className="grid grid-cols-2 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setInventoryView('badges')}
-              className={`h-8 font-semibold transition-all ${
-                inventoryView === 'badges'
-                  ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
-                  : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
-              }`}
-            >
-              Badges ({totalBadges})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setInventoryView('packs')}
-              className={`h-8 font-semibold transition-all ${
-                inventoryView === 'packs'
-                  ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
-                  : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
-              }`}
-            >
-              Packs ({totalPacks})
-            </Button>
-          </div>
+            {/* Inventory Segmented Toggle */}
+            <div className="grid grid-cols-2 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setInventoryView('badges')}
+                className={`h-8 font-semibold transition-all ${
+                  inventoryView === 'badges'
+                    ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
+                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
+                }`}
+              >
+                Badges ({totalBadges})
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setInventoryView('packs')}
+                className={`h-8 font-semibold transition-all ${
+                  inventoryView === 'packs'
+                    ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
+                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
+                }`}
+              >
+                Packs ({totalPacks})
+              </Button>
+            </div>
 
-          {inventoryView === 'badges' ? (
-            <>
-              <InventorySummary badges={badges} />
-              <BadgesInventory
-                badges={badges}
-                selectedForgeIds={selectedForgeIds}
-                unseenBadgeIds={unseenBadgeIds}
-                isForgeActive={activeTab === 'forge'}
-                onBadgeClick={handleBadgeClick}
-                onHoverStack={handleHoverStack}
-              />
-            </>
-          ) : (
-            <PacksInventory onOpenInShrine={handleOpenPackInShrine} />
-          )}
-        </section>
+            {inventoryView === 'badges' ? (
+              <>
+                <InventorySummary badges={badges} />
+                <BadgesInventory
+                  badges={badges}
+                  selectedForgeIds={selectedForgeIds}
+                  unseenBadgeIds={unseenBadgeIds}
+                  isForgeActive={activeTab === 'forge'}
+                  onBadgeClick={handleBadgeClick}
+                  onHoverStack={handleHoverStack}
+                />
+              </>
+            ) : (
+              <PacksInventory onOpenInShrine={handleOpenPackInShrine} />
+            )}
+          </section>
 
-        {/* Right Column: The Action Hub */}
-        <section className="lg:col-span-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2 min-h-[32px]">
-            <h2 className="text-lg font-bold text-neutral-300 tracking-wider">
-              ACTION HUB
-            </h2>
-          </div>
+          {/* Right Column: The Action Hub */}
+          <section className="lg:col-span-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2 min-h-[32px]">
+              <h2 className="text-lg font-bold text-neutral-300 tracking-wider">
+                ACTION HUB
+              </h2>
+            </div>
 
-          {/* Action Hub Segmented Switcher */}
-          <div className="grid grid-cols-3 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('showcase')}
-              className={`h-8 font-semibold transition-all ${
-                activeTab === 'showcase'
-                  ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
-                  : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
-              }`}
-            >
-              The Showcase
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('forge')}
-              className={`h-8 font-semibold transition-all ${
-                activeTab === 'forge'
-                  ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
-                  : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
-              }`}
-            >
-              The Forge
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setActiveTab('gacha')}
-              className={`h-8 font-semibold transition-all ${
-                activeTab === 'gacha'
-                  ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
-                  : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
-              }`}
-            >
-              Gacha Shrine
-            </Button>
-          </div>
+            {/* Action Hub Segmented Tabs */}
+            <div className="grid grid-cols-3 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab('showcase')}
+                className={`h-8 font-semibold transition-all ${
+                  activeTab === 'showcase'
+                    ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
+                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
+                }`}
+              >
+                The Showcase
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab('forge')}
+                className={`h-8 font-semibold transition-all ${
+                  activeTab === 'forge'
+                    ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
+                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
+                }`}
+              >
+                The Forge
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setActiveTab('gacha')}
+                className={`h-8 font-semibold transition-all ${
+                  activeTab === 'gacha'
+                    ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
+                    : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
+                }`}
+              >
+                Gacha Shrine
+              </Button>
+            </div>
 
-          {/* Action Hub Views */}
-          <div className="border border-neutral-800 rounded-xl bg-neutral-950/60 shadow-lg min-h-[500px]">
+            {/* Action Hub Tab Content Panels */}
             {activeTab === 'showcase' && <ShowcaseView />}
             {activeTab === 'forge' && (
               <Forge
@@ -253,21 +240,15 @@ export default function Dashboard() {
                 isShaking={isForgeShaking}
               />
             )}
-            {activeTab === 'gacha' && (
-              <Gacha
-                selectedPackType={selectedGachaPack}
-                onSelectPackType={setSelectedGachaPack}
-              />
-            )}
-          </div>
-        </section>
+            {activeTab === 'gacha' && <Gacha selectedPackType={selectedGachaPack} />}
+          </section>
+        </div>
       </div>
 
-      <RewardsModal
-        isOpen={isRewardsOpen}
-        onClose={() => setIsRewardsOpen(false)}
-        onNavigateActionRoute={(route) => setActiveTab(route)}
-      />
+      {/* Rewards Modal */}
+      {isRewardsOpen && (
+        <RewardsModal isOpen={isRewardsOpen} onClose={() => setIsRewardsOpen(false)} />
+      )}
     </div>
   );
 }

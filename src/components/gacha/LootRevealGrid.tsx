@@ -1,3 +1,6 @@
+// Run inside: frontend/
+// src/components/gacha/LootRevealGrid.tsx
+
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Badge } from '@/store/useShowcaseStore';
@@ -59,11 +62,11 @@ export default function LootRevealGrid({
   return (
     <div className="w-full flex flex-col items-center justify-center gap-3">
       {summary && (
-        <div className="w-full max-w-xl flex items-center justify-between px-3 py-2 rounded-lg bg-neutral-900/90 border border-neutral-800 text-xs">
+        <div className="w-full max-w-xl flex flex-col xs:flex-row items-start xs:items-center justify-between px-3 py-2 rounded-lg bg-neutral-900/90 border border-neutral-800 text-xs gap-2">
           <span className="font-bold text-neutral-300">
             Batch Unsealed: <strong className="text-white">{summary.total} Badges</strong>
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {[1, 2, 3, 4, 5].map((t) => (
               <span key={t} className="text-[11px] font-mono text-neutral-400">
                 T{t}: <strong className="text-neutral-200">{summary.tierCounts[t] || 0}</strong>
@@ -79,8 +82,8 @@ export default function LootRevealGrid({
       )}
 
       <div
-        className={`w-full max-w-2xl flex flex-wrap justify-center gap-3.5 p-1 ${
-          isBatch ? 'max-h-[360px] overflow-y-auto custom-scrollbar' : ''
+        className={`w-full max-w-xl mx-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 p-1 ${
+          isBatch ? 'max-h-[380px] overflow-y-auto custom-scrollbar' : ''
         }`}
       >
         {badges.map((badge, idx) => {
@@ -90,7 +93,7 @@ export default function LootRevealGrid({
           return (
             <motion.div
               key={badge.id}
-              className="w-24 sm:w-28 [perspective:1000px]"
+              className="w-[92px] xs:w-[102px] sm:w-[106px] [perspective:1000px] shrink-0"
               initial={isSkipped ? false : { opacity: 0, y: 25, scale: 0.85 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{

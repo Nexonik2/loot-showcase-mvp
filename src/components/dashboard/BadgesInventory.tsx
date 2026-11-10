@@ -1,14 +1,13 @@
-// src/components/dashboard/BadgesInventory.tsx
-
 import React, { useState, useMemo } from 'react';
 import { Layers, Shapes, Clock, Award, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import BadgeCard from '@/components/BadgeCard';
-import { type Badge, useArchiverStore } from '@/store/useShowcaseStore';
+import { type Badge, type BadgeShape, useArchiverStore } from '@/store/useShowcaseStore';
 
 export type OrderMode = 'age' | 'tier' | 'project' | 'shape';
 export type OrderDirection = 'desc' | 'asc';
+export type GroupingMode = OrderMode;
 
 interface BadgesInventoryProps {
   badges: Record<string, Badge>;
@@ -19,6 +18,7 @@ interface BadgesInventoryProps {
   onHoverStack?: (stackIds: string[]) => void;
 }
 
+// Extracts numeric timestamp from badge IDs (e.g. badge-1700000000000-...)
 const getBadgeTimestamp = (id: string): number => {
   const match = id.match(/\d{10,14}/);
   return match ? parseInt(match[0], 10) : 0;
@@ -35,33 +35,18 @@ export default function BadgesInventory({
   const [orderMode, setOrderMode] = useState<OrderMode>('age');
   const [orderDirection, setOrderDirection] = useState<OrderDirection>('desc');
 
+  // Pull store unseen IDs, staged badge ID, and dismissal action
   const { stagedBadgeId, unseenBadgeIds: storeUnseenBadgeIds, markBadgesAsSeen } = useArchiverStore();
   const effectiveUnseenBadgeIds = propUnseenBadgeIds ?? storeUnseenBadgeIds ?? [];
 
-  // Determine active tier filter when Forge is active and at least 1 badge is slotted
+  // Derive active tier for Forge compatibility lock
   const activeForgeTier = useMemo(() => {
-    if (!isForgeActive || selectedForgeIds.length === 0) return null;
+    if (selectedForgeIds.length === 0) return null;
     const firstBadge = badges[selectedForgeIds[0]];
     return firstBadge ? firstBadge.tier : null;
-  }, [isForgeActive, selectedForgeIds, badges]);
+  }, [selectedForgeIds, badges]);
 
-  // Pre-calculate best tier owned per project and shape
-  const { bestTierByProject, bestTierByShape } = useMemo(() => {
-    const projBest: Record<string, number> = {};
-    const shapeBest: Record<string, number> = {};
-
-    Object.values(badges).forEach((b) => {
-      if (!projBest[b.projectId] || b.tier < projBest[b.projectId]) {
-        projBest[b.projectId] = b.tier;
-      }
-      if (!shapeBest[b.shape] || b.tier < shapeBest[b.shape]) {
-        shapeBest[b.shape] = b.tier;
-      }
-    });
-
-    return { bestTierByProject: projBest, bestTierByShape: shapeBest };
-  }, [badges]);
-
+  // Handle order selection: clicking a new button sets it to 'desc', clicking active toggles direction
   const handleOrderClick = (mode: OrderMode) => {
     if (orderMode === mode) {
       setOrderDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
@@ -71,6 +56,16 @@ export default function BadgesInventory({
     }
   };
 
+  const renderSortIndicator = (mode: OrderMode) => {
+    if (orderMode !== mode) return null;
+    return orderDirection === 'desc' ? (
+      <ArrowDown size={12} className="text-emerald-400" />
+    ) : (
+      <ArrowUp size={12} className="text-emerald-400" />
+    );
+  };
+
+  // Stack identical badges (same project, shape, tier) and sort
   const stackedInventory = useMemo(() => {
     const grouped = Object.values(badges).reduce((acc, badge) => {
       const stackKey = `${badge.projectId}-${badge.shape}-${badge.tier}`;
@@ -95,72 +90,47 @@ export default function BadgesInventory({
 
       if (orderMode === 'tier') {
         if (a.tier !== b.tier) {
-          return orderDirection === 'desc' ? a.tier - b.tier : b.tier - a.tier;
+          return orderDirection === 'desc' ? b.tier - a.tier : a.tier - b.tier;
         }
         return a.projectId.localeCompare(b.projectId);
       }
 
       if (orderMode === 'project') {
-        if (a.projectId !== b.projectId) {
-          const rankA = bestTierByProject[a.projectId] ?? 99;
-          const rankB = bestTierByProject[b.projectId] ?? 99;
-          if (rankA !== rankB) {
-            return orderDirection === 'desc' ? rankA - rankB : rankB - rankA;
-          }
-          return orderDirection === 'desc'
-            ? a.projectId.localeCompare(b.projectId)
-            : b.projectId.localeCompare(a.projectId);
+        const projectComp = a.projectId.localeCompare(b.projectId);
+        if (projectComp !== 0) {
+          return orderDirection === 'desc' ? -projectComp : projectComp;
         }
-        if (a.tier !== b.tier) {
-          return orderDirection === 'desc' ? a.tier - b.tier : b.tier - a.tier;
-        }
-        return a.shape.localeCompare(b.shape);
+        return a.tier - b.tier;
       }
 
       if (orderMode === 'shape') {
-        if (a.shape !== b.shape) {
-          const rankA = bestTierByShape[a.shape] ?? 99;
-          const rankB = bestTierByShape[b.shape] ?? 99;
-          if (rankA !== rankB) {
-            return orderDirection === 'desc' ? rankA - rankB : rankB - rankA;
-          }
-          return orderDirection === 'desc'
-            ? a.shape.localeCompare(b.shape)
-            : b.shape.localeCompare(a.shape);
+        const shapeComp = (a.shape || '').localeCompare(b.shape || '');
+        if (shapeComp !== 0) {
+          return orderDirection === 'desc' ? -shapeComp : shapeComp;
         }
-        if (a.tier !== b.tier) {
-          return orderDirection === 'desc' ? a.tier - b.tier : b.tier - a.tier;
-        }
-        return a.projectId.localeCompare(b.projectId);
+        return a.tier - b.tier;
       }
 
       return 0;
     });
-  }, [badges, orderMode, orderDirection, bestTierByProject, bestTierByShape]);
-
-  const renderSortIndicator = (mode: OrderMode) => {
-    if (orderMode !== mode) return null;
-    return orderDirection === 'desc' ? (
-      <ArrowDown size={12} className="text-emerald-400" />
-    ) : (
-      <ArrowUp size={12} className="text-emerald-400" />
-    );
-  };
+  }, [badges, orderMode, orderDirection]);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Ordering Selection Toolbar */}
-      <div className="flex items-center justify-end gap-2 w-full">
-        <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider select-none">
+      {/* Sorting Control Toolbar */}
+      <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
+        <span className="font-semibold uppercase tracking-wider text-[11px] text-neutral-500">
           Order:
         </span>
-        <div className="flex items-center bg-neutral-900 p-1 rounded-lg border border-neutral-800 gap-1 text-xs">
+        <div className="flex items-center gap-1.5 bg-neutral-900/60 p-1 rounded-lg border border-neutral-800">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('age')}
             className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
-              orderMode === 'age' ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
+              orderMode === 'age'
+                ? 'bg-neutral-800 text-white font-semibold'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Clock size={12} />
@@ -173,7 +143,9 @@ export default function BadgesInventory({
             size="sm"
             onClick={() => handleOrderClick('tier')}
             className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
-              orderMode === 'tier' ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
+              orderMode === 'tier'
+                ? 'bg-neutral-800 text-white font-semibold'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Award size={12} />
@@ -186,7 +158,9 @@ export default function BadgesInventory({
             size="sm"
             onClick={() => handleOrderClick('project')}
             className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
-              orderMode === 'project' ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
+              orderMode === 'project'
+                ? 'bg-neutral-800 text-white font-semibold'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Layers size={12} />
@@ -199,7 +173,9 @@ export default function BadgesInventory({
             size="sm"
             onClick={() => handleOrderClick('shape')}
             className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
-              orderMode === 'shape' ? 'bg-neutral-800 text-white font-semibold' : 'text-neutral-400 hover:text-neutral-200'
+              orderMode === 'shape'
+                ? 'bg-neutral-800 text-white font-semibold'
+                : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Shapes size={12} />
@@ -211,26 +187,24 @@ export default function BadgesInventory({
 
       {/* Badges Grid */}
       <Card className="bg-neutral-900 border-neutral-800 flex-1 min-h-[550px]">
-        <CardContent className="p-6 h-full">
+        <CardContent className="p-4 sm:p-5 h-full">
           {Object.keys(badges).length === 0 ? (
             <div className="h-full min-h-[400px] flex items-center justify-center border border-dashed border-neutral-800 rounded-lg bg-neutral-950/50">
               <p className="text-neutral-500 text-sm">Un-inscribed badges will appear here.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 overflow-y-auto max-h-[650px] p-2 custom-scrollbar">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3 sm:gap-3.5 overflow-y-auto max-h-[650px] p-1 sm:p-2 custom-scrollbar">
               {stackedInventory.map((stackedBadge) => {
                 const slottedCount = stackedBadge.ids.filter((id) => selectedForgeIds.includes(id)).length;
                 const remainingCount = stackedBadge.count - slottedCount;
                 const isStackNew = stackedBadge.ids.some((id) => effectiveUnseenBadgeIds.includes(id));
                 const isStaged = stagedBadgeId ? stackedBadge.ids.includes(stagedBadgeId) : false;
-                
-                // Forge Incompatibility Constraints:
-                // 1. T1 Legendary can never be forged
-                const isT1Restricted = isForgeActive && stackedBadge.tier === 1;
-                // 2. Cross-tier merging is strictly forbidden once slot 1 is chosen
-                const isTierMismatch =
-                  isForgeActive && activeForgeTier !== null && stackedBadge.tier !== activeForgeTier;
-                const isCardDisabled = isT1Restricted || isTierMismatch;
+
+                // Forge compatibility check: dim Tier 1 (unforgeable) or mismatched tiers when slots occupied
+                const isCardDisabled = isForgeActive && (
+                  stackedBadge.tier === 1 ||
+                  (activeForgeTier !== null && stackedBadge.tier !== activeForgeTier)
+                );
 
                 const handleMouseEnter = () => {
                   if (isStackNew) {
@@ -248,9 +222,10 @@ export default function BadgesInventory({
                     count={remainingCount}
                     isSelected={slottedCount > 0 || isStaged}
                     isSlottedOut={remainingCount === 0}
+                    isDisabled={isCardDisabled}
                     isNew={isStackNew}
-                    onClick={() => remainingCount > 0 && onBadgeClick(stackedBadge)}
-                    onMouseEnter={() => isStackNew && onHoverStack?.(stackedBadge.ids)}
+                    onMouseEnter={handleMouseEnter}
+                    onClick={() => remainingCount > 0 && !isCardDisabled && onBadgeClick(stackedBadge)}
                   />
                 );
               })}

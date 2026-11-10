@@ -1,3 +1,4 @@
+// Run inside: frontend/
 // src/components/forge/ForgeCrucibleNode.tsx
 
 import React from 'react';
@@ -31,11 +32,12 @@ export default function ForgeCrucibleNode({
   const targetTheme = validation.targetTier ? getTierTheme(validation.targetTier) : null;
 
   return (
-    <div className="w-full max-w-md mx-auto my-0.5">
+    <div className="w-full max-w-xl mx-auto my-0.5">
       <AnimatePresence mode="wait">
         {slottedCount === 3 && validation.valid && targetTheme ? (
           <motion.div
             key="valid"
+            layout
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
@@ -62,14 +64,14 @@ export default function ForgeCrucibleNode({
             <div className="flex flex-col gap-2 mt-3 pt-2.5 border-t border-neutral-800/80">
               {validation.projectOdds && validation.projectOdds.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500 min-w-[70px]">
+                  <span className="text-[10px] font-mono uppercase text-neutral-500 shrink-0 min-w-[65px] sm:min-w-[70px]">
                     Project:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {validation.projectOdds.map(({ project, percentage }) => (
                       <span
                         key={project}
-                        className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-neutral-950/80 border border-neutral-800 text-neutral-300"
+                        className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-medium px-1.5 sm:px-2 py-0.5 rounded-md bg-neutral-950/80 border border-neutral-800 text-neutral-300"
                       >
                         <span className="uppercase">{project}</span>
                         <strong className="text-white ml-0.5">{percentage}%</strong>
@@ -81,14 +83,14 @@ export default function ForgeCrucibleNode({
 
               {validation.shapeOdds && validation.shapeOdds.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500 min-w-[70px]">
+                  <span className="text-[10px] font-mono uppercase text-neutral-500 shrink-0 min-w-[65px] sm:min-w-[70px]">
                     Shape Odds:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {validation.shapeOdds.map(({ shape, percentage }) => (
                       <span
                         key={shape}
-                        className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded-md bg-neutral-950/80 border border-neutral-800 text-neutral-300"
+                        className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-medium px-1.5 sm:px-2 py-0.5 rounded-md bg-neutral-950/80 border border-neutral-800 text-neutral-300"
                       >
                         {renderShapeMiniIcon(shape)}
                         <span className="capitalize">{shape}</span>
@@ -114,6 +116,7 @@ export default function ForgeCrucibleNode({
         ) : slottedCount === 3 && !validation.valid ? (
           <motion.div
             key="invalid"
+            layout
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
@@ -129,6 +132,7 @@ export default function ForgeCrucibleNode({
         ) : (
           <motion.div
             key="empty"
+            layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

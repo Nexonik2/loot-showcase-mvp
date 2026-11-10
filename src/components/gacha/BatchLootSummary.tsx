@@ -1,3 +1,6 @@
+// Run inside: frontend/
+// src/components/gacha/BatchLootSummary.tsx
+
 import React, { useMemo } from 'react';
 import type { Badge, PackType } from '@/store/useShowcaseStore';
 import { THEME } from './gachaTheme';
@@ -33,13 +36,13 @@ export default function BatchLootSummary({ pulls, packType, onClear }: BatchLoot
   }, [pulls]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 border border-neutral-800 bg-neutral-900/60 rounded-xl animate-in fade-in duration-300">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+    <div className="w-full max-w-xl mx-auto flex flex-col gap-4 p-4 border border-neutral-800 bg-neutral-900/60 rounded-xl animate-in fade-in duration-300">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between border-b border-neutral-800 pb-3 gap-2.5">
         <div>
           <span className={`text-xs font-bold uppercase tracking-wider ${theme.text}`}>
             Batch Loot Summary ({summary.total} Badges)
           </span>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
             {[1, 2, 3, 4, 5].map((t) => (
               <span key={t} className="text-[11px] font-mono text-neutral-300">
                 T{t}: <strong className="text-white">{summary.tierCounts[t] || 0}</strong>
@@ -57,7 +60,7 @@ export default function BatchLootSummary({ pulls, packType, onClear }: BatchLoot
           variant="ghost"
           size="sm"
           onClick={onClear}
-          className="h-7 px-2.5 text-xs text-neutral-400 hover:text-white"
+          className="h-7 px-2.5 text-xs text-neutral-400 hover:text-white border border-neutral-800 hover:border-neutral-700 bg-neutral-950/40 cursor-pointer transition-all active:scale-95 shrink-0"
         >
           <RotateCcw size={12} className="mr-1" /> Dismiss
         </Button>
@@ -68,7 +71,7 @@ export default function BatchLootSummary({ pulls, packType, onClear }: BatchLoot
           <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block mb-2">
             Jackpot & Rare Drops ({summary.notablePulls.length})
           </span>
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-64 overflow-y-auto p-1 custom-scrollbar">
+          <div className="grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 sm:gap-2.5 max-h-64 overflow-y-auto p-1 custom-scrollbar">
             {summary.notablePulls.map((badge) => (
               <BadgeCard
                 key={badge.id}
