@@ -71,7 +71,7 @@ export default function GachaShrine({
   };
 
   return (
-    <div className="min-h-[500px] border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5 w-full">
+    <div className="flex flex-col gap-5 p-4 min-h-0 h-auto lg:min-h-[500px]">
       {/* 1. Pack Tier Selector */}
       <PackTierSelector
         activePackType={activePackType}

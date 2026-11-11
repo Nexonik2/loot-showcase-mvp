@@ -345,3 +345,92 @@ export function findCleanInventoryCandidate(
 
   return null;
 }
+
+/**
+ * Heuristic auto-slotter with context awareness:
+ * - 0 slotted: Standard top-down scan (T2 down to T5 priority)
+ * - 1 slotted: Locks to Slot 1's tier and attempts pure identical -> same project -> shape match -> wildcard
+ * - 2 slotted: Tests remaining tier candidates against validateForgeRecipe to complete the craft
+ * - 3 slotted: Returns null (already full)
+ */
+export function findContextualForgeCandidate(
+  slottedBadges: Badge[],
+  allBadges: Record<string, Badge>
+): string[] | null {
+  // If altar is empty, run standard 4-pass top-down scan
+  if (slottedBadges.length === 0) {
+    return findCleanInventoryCandidate(allBadges);
+  }
+
+  // If 3 badges are already slotted, no fill is needed
+  if (slottedBadges.length >= 3) {
+    return null;
+  }
+
+  const targetTier = slottedBadges[0].tier;
+  // Tier 1 Legendary badges cannot be forged
+  if (targetTier <= 1) return null;
+
+  const slottedIds = new Set(slottedBadges.map((b) => b.id));
+
+  // Available unreserved badges of the exact same tier
+  const pool = Object.values(allBadges).filter(
+    (b) => b.tier === targetTier && !slottedIds.has(b.id)
+  );
+
+  if (slottedBadges.length === 1) {
+    const b1 = slottedBadges[0];
+
+    // Pass 1: Pure Match (same project, same shape)
+    const pureMatches = pool.filter(
+      (b) => b.projectId === b1.projectId && b.shape === b1.shape
+    );
+    if (pureMatches.length >= 2) {
+      return [b1.id, pureMatches[0].id, pureMatches[1].id];
+    }
+
+    // Pass 2: Same Project (any shapes)
+    const projectMatches = pool.filter((b) => b.projectId === b1.projectId);
+    if (projectMatches.length >= 2) {
+      return [b1.id, projectMatches[0].id, projectMatches[1].id];
+    }
+
+    // Pass 3: Mixed-Project Shape Merge (same shape, majority project)
+    const shapeMatches = pool.filter(
+      (b) => b.shape === b1.shape && b.projectId !== 'wildcard'
+    );
+    const sameProjSameShape = shapeMatches.filter((b) => b.projectId === b1.projectId);
+    const diffProjSameShape = shapeMatches.filter((b) => b.projectId !== b1.projectId);
+
+    if (sameProjSameShape.length >= 1 && diffProjSameShape.length >= 1) {
+      return [b1.id, sameProjSameShape[0].id, diffProjSameShape[0].id];
+    }
+
+    // Pass 4: Wildcard Completion (1 same project + 1 wildcard)
+    const wildcards = pool.filter((b) => b.projectId === 'wildcard');
+    if (projectMatches.length >= 1 && wildcards.length >= 1) {
+      return [b1.id, projectMatches[0].id, wildcards[0].id];
+    }
+
+    // Fallback: Test all candidate pairs in the pool with validateForgeRecipe
+    for (let i = 0; i < pool.length; i++) {
+      for (let j = i + 1; j < pool.length; j++) {
+        const testTrio = [b1, pool[i], pool[j]];
+        if (validateForgeRecipe(testTrio).valid) {
+          return [b1.id, pool[i].id, pool[j].id];
+        }
+      }
+    }
+  }
+
+  if (slottedBadges.length === 2) {
+    for (const candidate of pool) {
+      const testTrio = [...slottedBadges, candidate];
+      if (validateForgeRecipe(testTrio).valid) {
+        return testTrio.map((b) => b.id);
+      }
+    }
+  }
+
+  return null;
+}
