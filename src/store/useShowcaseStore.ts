@@ -25,7 +25,7 @@ export const FORGE_SETTINGS = {
   COST_MULTIPLIER: 1.1,
 } as const;
 
-export const LOOT_PROJECTS = ['loot', 'realms', 'genesis', 'bifrost', 'hyperloot'] as const;
+export const LOOT_PROJECTS = ['loot', 'realms', 'banners', 'rings', 'survivor', 'dope wars', 'codex', 'm3taloot'] as const;
 export const STANDARD_SHAPES: BadgeShape[] = ['circle', 'square', 'triangle', 'hexagon'];
 
 export const getForgeCost = (sourceTier: number) => {
@@ -77,12 +77,18 @@ export const rollTierFromOdds = (odds: Record<number, number>): number => {
   return 5;
 };
 
-export const rollProject = (targetProject?: string): string => {
-  if (targetProject && (LOOT_PROJECTS as readonly string[]).includes(targetProject)) {
-    if (Math.random() < 0.5) return targetProject;
-    const otherProjects = LOOT_PROJECTS.filter((p) => p !== targetProject);
-    return otherProjects[Math.floor(Math.random() * otherProjects.length)];
+const rollProject = (preferredProject?: string): string => {
+  if (
+    preferredProject &&
+    (LOOT_PROJECTS as readonly string[]).includes(preferredProject)
+  ) {
+    if (Math.random() < 0.5) {
+      return preferredProject;
+    }
+    const others = LOOT_PROJECTS.filter((p) => p !== preferredProject);
+    return others[Math.floor(Math.random() * others.length)];
   }
+
   return LOOT_PROJECTS[Math.floor(Math.random() * LOOT_PROJECTS.length)];
 };
 
@@ -354,12 +360,13 @@ export const useShowcaseStore = create<ShowcaseState>()(
         });
 
         // Action listeners & broadcast outside of set()
-        useQuestStore.getState().reportActionProgress('pack_any', count);
-        useQuestStore.getState().reportActionProgress('pack_bulk', count);
-        if (packType === 'adventurer') useQuestStore.getState().reportActionProgress('pack_adv', count);
-        if (packType === 'degen') useQuestStore.getState().reportActionProgress('pack_degen', count);
+        const questStore = useQuestStore.getState();
+        questStore.reportActionProgress('pack_any', count);
+        questStore.reportActionProgress('pack_bulk', count);
+        if (packType === 'adventurer') questStore.reportActionProgress('pack_adv', count);
+        if (packType === 'degen') questStore.reportActionProgress('pack_degen', count);
 
-        pulledBadges.forEach((b) => useQuestStore.getState().reportBadgeAcquired(b));
+        pulledBadges.forEach((b) => questStore.reportBadgeAcquired(b));
 
         const jackpot = pulledBadges.find((b) => b.tier <= 2 || b.projectId === 'wildcard');
         if (jackpot) {
@@ -477,6 +484,7 @@ export const useShowcaseStore = create<ShowcaseState>()(
           };
         });
 
+        useQuestStore.getState().reportActionProgress('forge_any', 1);
         if (forgedBadge) {
           useQuestStore.getState().reportActionProgress('forge_any', 1);
           useQuestStore.getState().reportActionProgress('forge_bulk', 1);

@@ -103,7 +103,7 @@ export default function ShowcaseView() {
   const isPipelineActive = stagedSlotId !== null || stagedBadgeId !== null;
 
   return (
-    <div className="min-h-0 h-auto lg:min-h-[500px] lg:h-full border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5">
+    <div className="min-h-0 h-auto lg:min-h-[500px] lg:h-full border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5 justify-center">
 
       {/* 1. Trait Matrix */}
       <div className="grid grid-cols-3 gap-2.5 w-full max-w-xl mx-auto">

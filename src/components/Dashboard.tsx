@@ -1,3 +1,4 @@
+// Run inside: frontend/
 // src/components/Dashboard.tsx
 
 import React, { useState } from 'react';
@@ -11,17 +12,20 @@ import Forge from './Forge';
 import Gacha from './Gacha';
 import MobileBottomNav, { type MobileTab } from './dashboard/MobileBottomNav';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard } from 'lucide-react';
+import QuestProgressToast from '@/components/rewards/QuestProgressToast';
+import RewardsModal from './rewards/RewardsModal';
 
 export default function Dashboard() {
   const currentDay = useShowcaseStore((state) => state.currentDay);
   const inkBalance = useShowcaseStore((state) => state.inkBalance);
   const badges = useShowcaseStore((state) => state.badges);
   const unopenedPacks = useShowcaseStore((state) => state.unopenedPacks);
+  const [isRewardsOpen, setIsRewardsOpen] = useState<boolean>(false);
 
   // Desktop active views
   const [inventoryView, setInventoryView] = useState<'badges' | 'packs'>('badges');
   const [activeTab, setActiveTab] = useState<'showcase' | 'forge' | 'gacha'>('showcase');
+  const [selectedGachaPack, setSelectedGachaPack] = useState<PackType>('explorer');
 
   // Mobile dedicated tab state
   const [mobileTab, setMobileTab] = useState<MobileTab>('badges');
@@ -68,6 +72,7 @@ export default function Dashboard() {
   };
 
   const handleOpenPackInShrine = (packType: PackType) => {
+    setSelectedGachaPack(packType);
     setActiveTab('gacha');
     setMobileTab('gacha');
   };
@@ -114,33 +119,27 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-black text-neutral-50 flex flex-col items-center">
-      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 lg:pb-8 flex flex-col gap-6">
-        
+      <QuestProgressToast />
+
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5 pb-24 lg:pb-6 flex flex-col gap-3 sm:gap-3.5">
         {/* Navigation Header */}
         <DashboardHeader
           currentDay={currentDay}
           inkBalance={inkBalance}
-          onOpenRewards={() => {}}
+          onOpenRewards={() => setIsRewardsOpen(true)}
         />
 
-        {/* 2. Main Workspace: items-stretch on mobile guarantees full width */}
-        <div className="w-full flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 relative items-stretch">
-
+        {/* 2. Main Workspace: Viewport-clamped on desktop so Left Inventory & Right Action Hub stay locked in height */}
+        <div className="w-full flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 relative items-stretch lg:h-[calc(100vh-145px)] lg:min-h-[560px] lg:max-h-[820px]">
           {/* Action Hub Column */}
           <section
             id="action-hub-section"
-            className={`w-full lg:col-span-6 lg:order-2 flex-col gap-4 scroll-mt-20 lg:h-full ${
+            className={`w-full lg:col-span-6 lg:order-2 flex-col gap-4 scroll-mt-20 lg:h-full lg:min-h-0 ${
               showHubOnMobile ? 'flex order-1' : 'hidden lg:flex'
             }`}
           >
-            <div className="flex items-center justify-between gap-2 min-h-[32px]">
-              <h2 className="text-lg font-bold text-neutral-300 tracking-wider">
-                ACTION HUB
-              </h2>
-            </div>
-
             {/* Desktop Switcher: Hidden on mobile */}
-            <div className="hidden lg:grid grid-cols-3 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1 w-full">
+            <div className="hidden lg:grid grid-cols-3 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1 w-full shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
@@ -179,8 +178,8 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            {/* Action Hub Card: min-h-fit on mobile removes empty black void */}
-            <div className="w-full min-h-0 h-auto lg:h-full flex flex-col">
+            {/* Action Hub Card: Matches Left Inventory height seamlessly */}
+            <div className="w-full border border-neutral-800 rounded-xl bg-neutral-950/70 shadow-lg min-h-0 h-auto lg:flex-1 lg:h-full flex flex-col justify-center overflow-hidden">
               {activeTab === 'showcase' && <ShowcaseView />}
               {activeTab === 'forge' && (
                 <Forge
@@ -188,28 +187,27 @@ export default function Dashboard() {
                   onRemoveFromSlot={handleRemoveFromSlot}
                   onClearSlots={handleClearSlots}
                   onSelectBadgeIds={(ids) => setSelectedForgeIds(ids)}
+                  isShaking={isForgeShaking}
                 />
               )}
-              {activeTab === 'gacha' && <Gacha />}
+              {activeTab === 'gacha' && (
+                <Gacha
+                  selectedPackType={selectedGachaPack}
+                  onSelectPackType={setSelectedGachaPack}
+                />
+              )}
             </div>
           </section>
 
           {/* Inventory Column */}
           <section
             id="inventory-section"
-            className={`w-full lg:col-span-6 lg:order-1 flex-col gap-4 scroll-mt-20 lg:h-full ${
+            className={`w-full lg:col-span-6 lg:order-1 flex-col gap-4 scroll-mt-20 lg:h-full lg:min-h-0 ${
               showInventoryOnMobile ? 'flex order-2' : 'hidden lg:flex'
             }`}
           >
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-neutral-300 flex items-center gap-2 tracking-wider">
-                <LayoutDashboard size={18} className="text-neutral-500" />
-                YOUR INVENTORY
-              </h2>
-            </div>
-
             {/* Desktop Switcher: Hidden on mobile */}
-            <div className="hidden lg:grid grid-cols-2 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1 w-full">
+            <div className="hidden lg:grid grid-cols-2 bg-neutral-900 p-1 rounded-lg border border-neutral-800 text-xs gap-1 w-full shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
@@ -238,29 +236,38 @@ export default function Dashboard() {
 
             {/* Dynamic Viewport Content */}
             {inventoryView === 'badges' ? (
-              <div className="w-full flex flex-col gap-4">
-                <div className={`w-full ${isSplitWorkbenchMobile ? 'hidden lg:block' : 'block'}`}>
+              <div className="w-full flex flex-col gap-4 lg:flex-1 lg:min-h-0">
+                <div className={`w-full shrink-0 ${isSplitWorkbenchMobile ? 'hidden lg:block' : 'block'}`}>
                   <InventorySummary badges={badges} />
                 </div>
 
-                <div className={`w-full ${isSplitWorkbenchMobile ? 'max-h-[320px] lg:max-h-none overflow-y-auto custom-scrollbar' : ''}`}>
+                <div className="w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                   <BadgesInventory
                     badges={badges}
                     isForgeActive={activeTab === 'forge'}
+                    isCompactMobile={isSplitWorkbenchMobile}
                     selectedForgeIds={selectedForgeIds}
                     onBadgeClick={handleBadgeClick}
                   />
                 </div>
               </div>
             ) : (
-              <div className="w-full">
+              <div className="w-full lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1 custom-scrollbar">
                 <PacksInventory onOpenInShrine={handleOpenPackInShrine} />
               </div>
             )}
           </section>
-
         </div>
       </div>
+
+      <RewardsModal
+        isOpen={isRewardsOpen}
+        onClose={() => setIsRewardsOpen(false)}
+        onNavigateActionRoute={(route) => {
+          setActiveTab(route);
+          setMobileTab(route);
+        }}
+      />
 
       {/* Mobile-Only Bottom Navigation Dock */}
       <MobileBottomNav

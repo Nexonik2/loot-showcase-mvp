@@ -13,6 +13,12 @@ interface LootRevealGridProps {
   isBatch?: boolean;
 }
 
+interface GroupedPull {
+  key: string;
+  badge: Badge;
+  count: number;
+}
+
 export default function LootRevealGrid({
   badges,
   isSkipped = false,
@@ -44,7 +50,29 @@ export default function LootRevealGrid({
     return { tierCounts, wildcardCount, total: badges.length };
   }, [badges, isBatch]);
 
-  // Resolves jackpot styling according to native tier colors
+  // Group duplicate pulls for batch opens so 10x / 50x hauls stay compact & scannable
+  const groupedBatchPulls = useMemo<GroupedPull[]>(() => {
+    if (!isBatch) return [];
+    const map = new Map<string, GroupedPull>();
+
+    for (const badge of badges) {
+      const key = `${badge.tier}-${badge.projectId}-${badge.shape}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(key, { key, badge, count: 1 });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+      const aWild = a.badge.projectId === 'wildcard' || a.badge.shape === 'wildcard' ? 0 : 1;
+      const bWild = b.badge.projectId === 'wildcard' || b.badge.shape === 'wildcard' ? 0 : 1;
+      if (aWild !== bWild) return aWild - bWild;
+      return a.badge.tier - b.badge.tier;
+    });
+  }, [badges, isBatch]);
+
   const getJackpotRingClass = (badge: Badge) => {
     const isWild = badge.projectId === 'wildcard' || badge.shape === 'wildcard';
     if (isWild || badge.tier === 1) {
@@ -81,53 +109,87 @@ export default function LootRevealGrid({
         </div>
       )}
 
-      <div
-        className={`w-full max-w-xl mx-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 p-1 ${
-          isBatch ? 'max-h-[380px] overflow-y-auto custom-scrollbar' : ''
-        }`}
-      >
-        {badges.map((badge, idx) => {
-          const isFlipped = isSkipped || isBatch || flippedIndices.has(idx);
-          const jackpotRing = getJackpotRingClass(badge);
+      {isBatch ? (
+        <div className="w-full max-w-xl mx-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-2.5 px-1.5 pb-1 max-h-[340px] overflow-y-auto custom-scrollbar">
+          {groupedBatchPulls.map((group, idx) => {
+            const jackpotRing = getJackpotRingClass(group.badge);
 
-          return (
-            <motion.div
-              key={badge.id}
-              className="w-[92px] xs:w-[102px] sm:w-[106px] [perspective:1000px] shrink-0"
-              initial={isSkipped ? false : { opacity: 0, y: 25, scale: 0.85 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{
-                duration: 0.25,
-                delay: isSkipped || isBatch ? 0 : idx * 0.05,
-                ease: [0.16, 1, 0.3, 1],
-              }}
-              onAnimationComplete={() => handleCardMount(idx)}
-            >
-              <div
-                className={`relative w-full aspect-[3/4] transition-transform duration-500 [transform-style:preserve-3d] ${
-                  isFlipped ? '[transform:rotateY(180deg)]' : ''
-                }`}
-                style={{ willChange: 'transform' }}
+            return (
+              <motion.div
+                key={group.key}
+                initial={{ opacity: 0, y: 14, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  duration: 0.22,
+                  delay: Math.min(idx * 0.025, 0.35),
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className={`relative w-[88px] xs:w-[96px] sm:w-[100px] aspect-[3/4] rounded-xl shrink-0 ${jackpotRing}`}
               >
-                {/* Face Down Backing */}
-                <div className="absolute inset-0 rounded-xl bg-neutral-900 border border-neutral-700/80 p-2 flex flex-col items-center justify-center [backface-visibility:hidden] shadow-md">
-                  <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
-                    <Sparkles size={14} className="text-neutral-500" />
-                  </div>
-                  <span className="text-[10px] font-mono text-neutral-500 mt-2">SEALED</span>
-                </div>
+                <BadgeCard
+                  tier={group.badge.tier}
+                  projectId={group.badge.projectId}
+                  shape={group.badge.shape}
+                />
 
-                {/* Face Up Badge Card */}
+                {group.count > 1 && (
+                  <span className="absolute -top-2 -right-1.5 z-20 px-1.5 py-0.5 rounded-full bg-neutral-950 border border-neutral-600/90 text-neutral-100 text-[11px] font-mono font-extrabold leading-none shadow-md">
+                    x{group.count}
+                  </span>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="w-full max-w-xl mx-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 p-1">
+          {badges.map((badge, idx) => {
+            const isFlipped = isSkipped || flippedIndices.has(idx);
+            const jackpotRing = getJackpotRingClass(badge);
+
+            return (
+              <motion.div
+                key={badge.id}
+                className="w-[92px] xs:w-[102px] sm:w-[106px] [perspective:1000px] shrink-0"
+                initial={isSkipped ? false : { opacity: 0, y: 25, scale: 0.85 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  duration: 0.25,
+                  delay: isSkipped ? 0 : idx * 0.05,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                onAnimationComplete={() => handleCardMount(idx)}
+              >
                 <div
-                  className={`absolute inset-0 rounded-xl [transform:rotateY(180deg)] [backface-visibility:hidden] ${jackpotRing}`}
+                  className={`relative w-full aspect-[3/4] transition-transform duration-500 [transform-style:preserve-3d] ${
+                    isFlipped ? '[transform:rotateY(180deg)]' : ''
+                  }`}
+                  style={{ willChange: 'transform' }}
                 >
-                  <BadgeCard tier={badge.tier} projectId={badge.projectId} shape={badge.shape} />
+                  {/* Face Down Backing */}
+                  <div className="absolute inset-0 rounded-xl bg-neutral-900 border border-neutral-700/80 p-2 flex flex-col items-center justify-center [backface-visibility:hidden] shadow-md">
+                    <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
+                      <Sparkles size={14} className="text-neutral-500" />
+                    </div>
+                    <span className="text-[10px] font-mono text-neutral-500 mt-2">SEALED</span>
+                  </div>
+
+                  {/* Face Up Badge Card */}
+                  <div
+                    className={`absolute inset-0 rounded-xl [transform:rotateY(180deg)] [backface-visibility:hidden] ${jackpotRing}`}
+                  >
+                    <BadgeCard
+                      tier={badge.tier}
+                      projectId={badge.projectId}
+                      shape={badge.shape}
+                    />
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

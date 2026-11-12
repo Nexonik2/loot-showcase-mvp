@@ -1,9 +1,12 @@
+// Run inside: frontend/
+// src/components/dashboard/BadgesInventory.tsx
+
 import React, { useState, useMemo } from 'react';
 import { Layers, Shapes, Clock, Award, ArrowDown, ArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import BadgeCard from '@/components/BadgeCard';
-import { type Badge, type BadgeShape, useArchiverStore } from '@/store/useShowcaseStore';
+import { type Badge, useShowcaseStore } from '@/store/useShowcaseStore';
 
 export type OrderMode = 'age' | 'tier' | 'project' | 'shape';
 export type OrderDirection = 'desc' | 'asc';
@@ -14,6 +17,7 @@ interface BadgesInventoryProps {
   selectedForgeIds: string[];
   unseenBadgeIds?: string[];
   isForgeActive?: boolean;
+  isCompactMobile?: boolean;
   onBadgeClick: (stack: Badge & { count: number; ids: string[] }) => void;
   onHoverStack?: (stackIds: string[]) => void;
 }
@@ -29,6 +33,7 @@ export default function BadgesInventory({
   selectedForgeIds,
   unseenBadgeIds: propUnseenBadgeIds,
   isForgeActive = false,
+  isCompactMobile = false,
   onBadgeClick,
   onHoverStack,
 }: BadgesInventoryProps) {
@@ -36,7 +41,9 @@ export default function BadgesInventory({
   const [orderDirection, setOrderDirection] = useState<OrderDirection>('desc');
 
   // Pull store unseen IDs, staged badge ID, and dismissal action
-  const { stagedBadgeId, unseenBadgeIds: storeUnseenBadgeIds, markBadgesAsSeen } = useArchiverStore();
+  const stagedBadgeId = useShowcaseStore((state) => state.stagedBadgeId);
+  const storeUnseenBadgeIds = useShowcaseStore((state) => state.unseenBadgeIds);
+  const markBadgesAsSeen = useShowcaseStore((state) => state.markBadgesAsSeen);
   const effectiveUnseenBadgeIds = propUnseenBadgeIds ?? storeUnseenBadgeIds ?? [];
 
   // Derive active tier for Forge compatibility lock
@@ -116,18 +123,18 @@ export default function BadgesInventory({
   }, [badges, orderMode, orderDirection]);
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Sorting Control Toolbar */}
-      <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
-        <span className="font-semibold uppercase tracking-wider text-[11px] text-neutral-500">
+    <div className="flex flex-col gap-3 sm:gap-4">
+      {/* Sorting Control Toolbar: Centered group on < lg so "Order:" stays connected to sort pills */}
+      <div className="flex items-center justify-center lg:justify-between gap-2.5 text-xs text-neutral-400 px-1">
+        <span className="font-semibold uppercase tracking-wider text-[11px] text-neutral-500 shrink-0">
           Order:
         </span>
-        <div className="flex items-center gap-1.5 bg-neutral-900/60 p-1 rounded-lg border border-neutral-800">
+        <div className="flex items-center gap-1 sm:gap-1.5 bg-neutral-900/60 p-1 rounded-lg border border-neutral-800">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('age')}
-            className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
               orderMode === 'age'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -142,7 +149,7 @@ export default function BadgesInventory({
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('tier')}
-            className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
               orderMode === 'tier'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -157,7 +164,7 @@ export default function BadgesInventory({
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('project')}
-            className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
               orderMode === 'project'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -172,7 +179,7 @@ export default function BadgesInventory({
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('shape')}
-            className={`h-7 px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
               orderMode === 'shape'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -185,26 +192,46 @@ export default function BadgesInventory({
         </div>
       </div>
 
-      {/* Badges Grid */}
-      <Card className="bg-neutral-900 border-neutral-800 flex-1 min-h-[550px]">
-        <CardContent className="p-4 sm:p-5 h-full">
+      {/* Badges Grid: Desktop classes remain untouched; isCompactMobile scales dynamically with viewport height */}
+      <Card
+        className={`bg-neutral-900 border-neutral-800 flex-1 ${
+          isCompactMobile ? 'min-h-0 py-3 sm:py-4 lg:py-6 lg:min-h-[550px]' : 'min-h-[550px]'
+        }`}
+      >
+        <CardContent className="p-3 sm:p-4 lg:p-5 h-full">
           {Object.keys(badges).length === 0 ? (
-            <div className="h-full min-h-[400px] flex items-center justify-center border border-dashed border-neutral-800 rounded-lg bg-neutral-950/50">
+            <div
+              className={`h-full flex items-center justify-center border border-dashed border-neutral-800 rounded-lg bg-neutral-950/50 ${
+                isCompactMobile ? 'min-h-[200px] lg:min-h-[400px]' : 'min-h-[400px]'
+              }`}
+            >
               <p className="text-neutral-500 text-sm">Un-inscribed badges will appear here.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3 sm:gap-3.5 overflow-y-auto max-h-[650px] p-1 sm:p-2 custom-scrollbar">
+            <div
+              className={`grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3 sm:gap-3.5 overflow-y-auto p-1 sm:p-2 custom-scrollbar ${
+                isCompactMobile
+                  ? 'max-h-[clamp(300px,46dvh,540px)] lg:max-h-[650px]'
+                  : 'max-h-[650px]'
+              }`}
+            >
               {stackedInventory.map((stackedBadge) => {
-                const slottedCount = stackedBadge.ids.filter((id) => selectedForgeIds.includes(id)).length;
+                const slottedCount = stackedBadge.ids.filter((id) =>
+                  selectedForgeIds.includes(id)
+                ).length;
                 const remainingCount = stackedBadge.count - slottedCount;
-                const isStackNew = stackedBadge.ids.some((id) => effectiveUnseenBadgeIds.includes(id));
-                const isStaged = stagedBadgeId ? stackedBadge.ids.includes(stagedBadgeId) : false;
+                const isStackNew = stackedBadge.ids.some((id) =>
+                  effectiveUnseenBadgeIds.includes(id)
+                );
+                const isStaged = stagedBadgeId
+                  ? stackedBadge.ids.includes(stagedBadgeId)
+                  : false;
 
                 // Forge compatibility check: dim Tier 1 (unforgeable) or mismatched tiers when slots occupied
-                const isCardDisabled = isForgeActive && (
-                  stackedBadge.tier === 1 ||
-                  (activeForgeTier !== null && stackedBadge.tier !== activeForgeTier)
-                );
+                const isCardDisabled =
+                  isForgeActive &&
+                  (stackedBadge.tier === 1 ||
+                    (activeForgeTier !== null && stackedBadge.tier !== activeForgeTier));
 
                 const handleMouseEnter = () => {
                   if (isStackNew) {
@@ -225,7 +252,9 @@ export default function BadgesInventory({
                     isDisabled={isCardDisabled}
                     isNew={isStackNew}
                     onMouseEnter={handleMouseEnter}
-                    onClick={() => remainingCount > 0 && !isCardDisabled && onBadgeClick(stackedBadge)}
+                    onClick={() =>
+                      remainingCount > 0 && !isCardDisabled && onBadgeClick(stackedBadge)
+                    }
                   />
                 );
               })}

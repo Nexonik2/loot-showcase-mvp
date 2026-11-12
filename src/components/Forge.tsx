@@ -4,12 +4,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useShowcaseStore, type Badge } from '@/store/useShowcaseStore';
+import { useQuestStore } from '@/store/useQuestStore';
 import {
   ForgeAltarSlots,
   ForgeCrucibleNode,
   ForgeBatchControls,
   ForgeAnvilTrigger,
-  ForgeResultModal,
 } from './forge';
 import {
   validateForgeRecipe,
@@ -38,17 +38,27 @@ export default function Forge({
   const badges = useShowcaseStore((state) => state.badges);
   const forgeBadges = useShowcaseStore((state) => state.forgeBadges);
 
+  const pauseQuestToasts = useQuestStore((state) => state.pauseQuestToasts);
+  const resumeQuestToasts = useQuestStore((state) => state.resumeQuestToasts);
+
   const [batchCount, setBatchCount] = useState<number>(1);
   const [isForging, setIsForging] = useState<boolean>(false);
   const [strikeStep, setStrikeStep] = useState<number>(0);
   const [mintedResults, setMintedResults] = useState<Badge[]>([]);
   const [inkSavedAmount, setInkSavedAmount] = useState<number>(0);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
   // Slotted badge instances
   const slottedBadges = useMemo(() => {
     return selectedBadgeIds.map((id) => badges[id]).filter(Boolean) as Badge[];
   }, [selectedBadgeIds, badges]);
+
+  // Clear previous inline outcome the moment new badges are slotted
+  useEffect(() => {
+    if (selectedBadgeIds.length > 0 && mintedResults.length > 0) {
+      setMintedResults([]);
+      setInkSavedAmount(0);
+    }
+  }, [selectedBadgeIds.length, mintedResults.length]);
 
   // Active tier anchor
   const activeTier = slottedBadges.length > 0 ? slottedBadges[0].tier : null;
@@ -84,6 +94,8 @@ export default function Forge({
 
   const handleAutoFill = () => {
     if (!autoFillCandidate) return;
+    setMintedResults([]);
+    setInkSavedAmount(0);
     if (onSelectBadgeIds) {
       onSelectBadgeIds(autoFillCandidate);
     }
@@ -92,6 +104,11 @@ export default function Forge({
 
   const handleBatchChange = (newCount: number) => {
     setBatchCount(Math.max(1, Math.min(newCount, maxBatchCount)));
+  };
+
+  const handleClearResults = () => {
+    setMintedResults([]);
+    setInkSavedAmount(0);
   };
 
   const handleStrikeForge = () => {
@@ -111,6 +128,9 @@ export default function Forge({
     if (!batchTrios || batchTrios.length !== batchCount) return;
 
     setIsForging(true);
+    setMintedResults([]);
+    setInkSavedAmount(0);
+    pauseQuestToasts();
 
     // Strike 1 (0ms)
     setStrikeStep(1);
@@ -162,12 +182,12 @@ export default function Forge({
 
       setMintedResults(results);
       setInkSavedAmount(saved);
-      setIsModalOpen(true);
 
       onClearSlots();
       setBatchCount(1);
       setStrikeStep(0);
       setIsForging(false);
+      resumeQuestToasts();
     }, 650);
   };
 
@@ -175,70 +195,56 @@ export default function Forge({
     <motion.div
       animate={isShaking ? { x: [-5, 5, -4, 4, -2, 2, 0] } : { x: 0 }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className="min-h-0 h-auto lg:min-h-[500px] lg:h-full border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center justify-between gap-3 sm:gap-4 w-full"
+      className="w-full max-w-xl mx-auto flex flex-col items-center justify-center min-h-0 h-auto lg:h-full lg:flex-1 p-4 sm:p-5 gap-3.5 sm:gap-4"
     >
-      <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-between min-h-0 h-auto lg:h-full p-4 sm:p-5 gap-4">
-        {/* Upper Workbench: Altar + Conduits + Crucible */}
-        <div className="w-full flex flex-col items-center gap-3">
-          <motion.div
-            animate={isShaking ? { x: [-6, 6, -4, 4, -2, 2, 0] } : { x: 0 }}
-            transition={{ duration: 0.35 }}
-            className="w-full flex flex-col items-center"
-          >
-            <ForgeAltarSlots
-              slots={[
-                slottedBadges[0] || null,
-                slottedBadges[1] || null,
-                slottedBadges[2] || null,
-              ]}
-              onRemoveBadge={onRemoveFromSlot}
-              isValidRecipe={validation.valid}
-              activeTier={activeTier}
-              strikeStep={strikeStep}
-            />
+      {/* Upper Workbench: Altar Trio + Conduits + Crucible Node (with Inline Outcome) */}
+      <div className="w-full flex flex-col items-center gap-3">
+        <ForgeAltarSlots
+          slots={[
+            slottedBadges[0] || null,
+            slottedBadges[1] || null,
+            slottedBadges[2] || null,
+          ]}
+          onRemoveBadge={onRemoveFromSlot}
+          isValidRecipe={validation.valid}
+          activeTier={activeTier}
+          strikeStep={strikeStep}
+        />
 
-            <ForgeCrucibleNode
-              validation={validation}
-              slottedCount={slottedBadges.length}
-            />
-          </motion.div>
-        </div>
-
-        {/* Lower Action Hub: Batch Stepper + Strike Button */}
-        {/* lg:mt-auto ensures on desktop this anchors neatly to the bottom of the stretched card */}
-        <div className="w-full flex flex-col items-center gap-3 lg:mt-auto">
-          <ForgeBatchControls
-            batchCount={batchCount}
-            maxBatchCount={maxBatchCount}
-            costPerCraft={costPerCraft}
-            inkBalance={inkBalance}
-            isValidRecipe={validation.valid}
-            slottedCount={slottedBadges.length}
-            onBatchChange={handleBatchChange}
-            onAutoFill={handleAutoFill}
-            onClearForge={onClearSlots}
-            hasAutoFillCandidate={!!autoFillCandidate}
-            disabled={isForging}
-          />
-
-          <ForgeAnvilTrigger
-            isValid={validation.valid}
-            isForging={isForging}
-            canAfford={inkBalance >= costPerCraft * batchCount}
-            totalCost={costPerCraft * batchCount}
-            batchCount={batchCount}
-            slottedCount={slottedBadges.length}
-            strikeStep={strikeStep}
-            onStrike={handleStrikeForge}
-          />
-        </div>
-
-        {/* Transmutation Modal */}
-        <ForgeResultModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          forgedBadges={mintedResults}
+        <ForgeCrucibleNode
+          validation={validation}
+          slottedCount={slottedBadges.length}
+          mintedResults={mintedResults}
           inkSaved={inkSavedAmount}
+          onClearResults={handleClearResults}
+        />
+      </div>
+
+      {/* Lower Controls */}
+      <div className="w-full flex flex-col items-center gap-3">
+        <ForgeBatchControls
+          batchCount={batchCount}
+          maxBatchCount={maxBatchCount}
+          costPerCraft={costPerCraft}
+          inkBalance={inkBalance}
+          isValidRecipe={validation.valid}
+          slottedCount={slottedBadges.length}
+          onBatchChange={handleBatchChange}
+          onAutoFill={handleAutoFill}
+          onClearForge={onClearSlots}
+          hasAutoFillCandidate={!!autoFillCandidate}
+          disabled={isForging}
+        />
+
+        <ForgeAnvilTrigger
+          isValid={validation.valid}
+          isForging={isForging}
+          canAfford={inkBalance >= costPerCraft * batchCount}
+          totalCost={costPerCraft * batchCount}
+          batchCount={batchCount}
+          slottedCount={slottedBadges.length}
+          strikeStep={strikeStep}
+          onStrike={handleStrikeForge}
         />
       </div>
     </motion.div>

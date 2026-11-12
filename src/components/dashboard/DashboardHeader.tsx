@@ -1,11 +1,14 @@
+// Run inside: frontend/
 // src/components/dashboard/DashboardHeader.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Sparkles, Flame, Gift, Droplet, Radio, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TIER_THEMES } from '@/lib/theme';
 import { useFeedStore } from '@/store/useFeedStore';
 import { useShowcaseStore } from '@/store/useShowcaseStore';
+import { useQuestStore } from '@/store/useQuestStore';
+import { SEASONAL_CALENDAR_CONFIG } from '@/lib/calendarData';
 
 interface DashboardHeaderProps {
   currentDay: number;
@@ -23,9 +26,31 @@ export default function DashboardHeader({
 }: DashboardHeaderProps) {
   const events = useFeedStore((state) => state.events);
   const advanceDay = useShowcaseStore((state) => state.advanceDay);
+  const isDailyFaucetClaimed = useShowcaseStore((state) => state.isDailyFaucetClaimed);
+  const claimedCalendarDays = useShowcaseStore((state) => state.claimedCalendarDays);
+
+  const dailyQuests = useQuestStore((state) => state.dailyQuests);
+  const weeklyQuests = useQuestStore((state) => state.weeklyQuests);
 
   const [epochTimeRemaining, setEpochTimeRemaining] = useState<string>('');
   const [seasonTimeRemaining, setSeasonTimeRemaining] = useState<string>('');
+
+  // Total unclaimed rewards across Daily/Weekly quests, Daily Faucet, and Seasonal Calendar
+  const totalUnclaimedRewards = useMemo(() => {
+    const unclaimedQuests =
+      dailyQuests.filter((q) => q.isCompleted && !q.isClaimed).length +
+      weeklyQuests.filter((q) => q.isCompleted && !q.isClaimed).length;
+
+    const unclaimedFaucet = isDailyFaucetClaimed ? 0 : 1;
+
+    const currentProgressDay = Math.min(40, currentDay);
+    const claimedSet = new Set(claimedCalendarDays);
+    const unclaimedCalendar = SEASONAL_CALENDAR_CONFIG.filter(
+      (c) => c.day <= currentProgressDay && !claimedSet.has(c.day)
+    ).length;
+
+    return unclaimedQuests + unclaimedFaucet + unclaimedCalendar;
+  }, [dailyQuests, weeklyQuests, isDailyFaucetClaimed, claimedCalendarDays, currentDay]);
 
   // Continuous real-time countdown for both the active Epoch and total Season
   useEffect(() => {
@@ -70,6 +95,33 @@ export default function DashboardHeader({
   // Duplicate events array to form a continuous, seamless loop
   const displayEvents = events.length > 0 ? [...events, ...events] : [];
 
+  const renderRewardsButton = () => {
+    const hasUnclaimed = totalUnclaimedRewards > 0;
+
+    return (
+      <div className="relative inline-flex shrink-0">
+        {hasUnclaimed && (
+          <span className="absolute -top-2 -right-1.5 z-20 min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-500 border border-emerald-300 text-neutral-950 font-mono text-[11px] font-extrabold flex items-center justify-center shadow-md leading-none pointer-events-none">
+            {totalUnclaimedRewards}
+          </span>
+        )}
+
+        <Button
+          variant="outline"
+          onClick={onOpenRewards}
+          className={`h-10 sm:h-11 px-4 sm:px-5 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 ${
+            hasUnclaimed
+              ? 'border-purple-500/80 bg-purple-950/55 hover:bg-purple-900/65 text-white shadow-[0_0_18px_rgba(168,85,247,0.35)] animate-[pulse_3s_ease-in-out_infinite]'
+              : 'border-purple-900/60 bg-purple-950/30 hover:bg-purple-900/40 text-purple-200 hover:text-white shadow-sm'
+          }`}
+        >
+          <Gift size={16} className="text-purple-300 shrink-0" />
+          <span className="font-bold text-xs sm:text-sm tracking-wide">Rewards</span>
+        </Button>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Ticker Animation Styling */}
@@ -88,17 +140,21 @@ export default function DashboardHeader({
         }
       `}</style>
 
-      {/* Global Navigation Bar */}
-      <nav className="flex flex-col lg:flex-row items-center justify-between mb-4 bg-neutral-900 px-6 py-4 rounded-xl border border-neutral-800 shadow-md gap-4">
-        {/* Left: Branding & Epoch Day */}
-        <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
+      {/* Global Navigation Bar:
+          Left-to-right flow: [LOOT SHOWCASE + Day] -> [Season Countdown] -> [Ink Balance] -> [Rewards]
+      */}
+      <nav className="flex flex-wrap sm:flex-nowrap items-center justify-between bg-neutral-900 px-4 py-3.5 sm:px-6 sm:py-4 rounded-xl border border-neutral-800 shadow-md gap-x-3 gap-y-3 sm:gap-4">
+        {/* 1. Left: Branding & Epoch Day */}
+        <div className="order-1 flex flex-col items-start justify-center text-left min-w-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="text-emerald-400 w-5 h-5" />
-            <h1 className="text-lg font-bold tracking-wider text-white">LOOT SHOWCASE</h1>
+            <Sparkles className="text-emerald-400 w-5 h-5 shrink-0" />
+            <h1 className="text-base sm:text-lg lg:text-xl font-bold tracking-wider text-white truncate">
+              LOOT SHOWCASE
+            </h1>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono text-neutral-400 mt-1 lg:pl-7">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-mono text-neutral-400 mt-1 sm:pl-7">
             <span>
-              Epoch Day: <strong className="text-neutral-200">{currentDay} / {TOTAL_SEASON_DAYS}</strong>
+              Day <strong className="text-neutral-200">{currentDay}/{TOTAL_SEASON_DAYS}</strong>
             </span>
             <span className="text-neutral-600">•</span>
             <span className="flex items-center gap-1 text-[11px] text-amber-400/90 font-medium">
@@ -107,53 +163,52 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        {/* Center: Live Season Countdown */}
-        <div className="flex flex-col items-center justify-center w-full lg:w-auto">
-          <div className="relative group px-6 py-2 rounded-xl border border-red-900/60 bg-gradient-to-b from-red-950/40 via-red-950/20 to-neutral-950 flex flex-col items-center shadow-[0_0_20px_rgba(239,68,68,0.15)] ring-1 ring-red-500/20">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-red-400 tracking-widest uppercase">
-              <Flame size={14} className="text-red-500 animate-pulse" />
-              <span>Season Ends In</span>
+        {/* 2. Center: Live Season Countdown */}
+        <div className="order-2 flex items-center justify-end sm:justify-center">
+          <div className="relative px-3.5 py-1.5 sm:px-5 sm:py-2 lg:px-6 rounded-xl border border-red-900/60 bg-gradient-to-b from-red-950/40 via-red-950/20 to-neutral-950 flex flex-row sm:flex-col items-center gap-2 sm:gap-0 shadow-[0_0_20px_rgba(239,68,68,0.15)] ring-1 ring-red-500/20">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-red-400 tracking-wider sm:tracking-widest uppercase">
+              <Flame size={13} className="text-red-500 animate-pulse shrink-0" />
+              <span className="hidden xs:inline">Season Ends In</span>
+              <span className="xs:hidden">Ends</span>
             </div>
-            <div className="font-mono text-2xl font-black text-red-100 tracking-wider mt-0.5 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
+            <div className="font-mono text-sm sm:text-xl lg:text-2xl font-black text-red-100 tracking-wider sm:mt-0.5 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
               {seasonTimeRemaining || '--:--:--'}
             </div>
           </div>
         </div>
 
-        {/* Right: Ink Balance & Rewards */}
-        <div className="flex flex-col items-center lg:items-end justify-center gap-1.5 w-full lg:w-auto">
-          <div className="flex items-center gap-1.5 text-xs text-neutral-400 select-none">
-            <Droplet size={14} className="text-emerald-400" />
-            <span>Balance:</span>
-            <span className="font-mono font-bold text-emerald-400 text-sm">{inkBalance} Ink</span>
+        {/* 3 & 4. Right Group: Bordered Ink Balance (Left) + Rewards Button (Right) */}
+        <div className="order-3 w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3 pt-1 sm:pt-0">
+          <div className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-neutral-950/85 border border-neutral-800/90 shadow-inner flex items-center gap-1.5 sm:gap-2 select-none shrink-0">
+            <Droplet size={15} className="text-emerald-400 shrink-0" />
+            <span className="hidden md:inline text-xs text-neutral-400 font-medium">Balance:</span>
+            <span className="font-mono font-bold text-emerald-400 text-xs sm:text-sm tabular-nums">
+              {inkBalance.toLocaleString()} Ink
+            </span>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenRewards}
-            className="h-8 px-3.5 border-purple-900/60 bg-purple-950/30 hover:bg-purple-900/40 text-purple-200 hover:text-white transition-all shadow-sm active:scale-95 cursor-pointer"
-          >
-            <Gift size={14} className="mr-1.5 text-purple-400" />
-            <span className="font-semibold text-xs">Rewards</span>
-          </Button>
+          {renderRewardsButton()}
         </div>
       </nav>
 
       {/* Infinite Auto-Scrolling Public Feed */}
-      <div className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg p-2.5 mb-6 flex items-center overflow-hidden shadow-inner">
-        <div className="flex items-center gap-1.5 text-neutral-400 text-xs font-mono font-bold uppercase tracking-wider mr-3 pl-1 shrink-0 border-r border-neutral-800 pr-3 z-10 bg-neutral-900/60">
-          <Radio size={14} className="text-emerald-400 animate-pulse" />
+      <div className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg px-2.5 py-1.5 flex items-center overflow-hidden shadow-inner">
+        <div className="flex items-center gap-1.5 text-neutral-400 text-xs font-mono font-bold uppercase tracking-wider mr-3 pl-1 pr-3 -my-1.5 py-1.5 shrink-0 border-r border-neutral-800 z-10 bg-neutral-900">
+          <Radio size={13} className="text-emerald-400 animate-pulse" />
           <span>News Feed</span>
         </div>
 
         <div className="overflow-hidden w-full relative">
           <div className="animate-feed-marquee flex items-center gap-6 text-xs text-neutral-300 font-sans">
             {displayEvents.map((evt, idx) => {
-              const tierStyle = evt.tier && TIER_THEMES[evt.tier] ? TIER_THEMES[evt.tier].text : 'text-amber-400';
+              const tierStyle =
+                evt.tier && TIER_THEMES[evt.tier] ? TIER_THEMES[evt.tier].text : 'text-amber-400';
 
               return (
-                <div key={`${evt.id}-${idx}`} className="inline-flex items-center gap-2 whitespace-nowrap shrink-0">
+                <div
+                  key={`${evt.id}-${idx}`}
+                  className="inline-flex items-center gap-2 whitespace-nowrap shrink-0"
+                >
                   {evt.isPlayer ? (
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 font-mono font-bold text-[10px] leading-none">
                       YOU
@@ -164,7 +219,9 @@ export default function DashboardHeader({
                     </span>
                   )}
                   <span className="text-neutral-400 leading-none">{evt.actionText}</span>
-                  <span className={`font-semibold leading-none ${tierStyle}`}>{evt.highlightText}</span>
+                  <span className={`font-semibold leading-none ${tierStyle}`}>
+                    {evt.highlightText}
+                  </span>
                   <span className="opacity-25 text-neutral-600 select-none ml-4">•</span>
                 </div>
               );

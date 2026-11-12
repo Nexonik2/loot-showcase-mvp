@@ -1,3 +1,4 @@
+// Run inside: frontend/
 // src/components/gacha/PackOpeningStage.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -8,6 +9,7 @@ import {
   type BadgeShape,
   PACK_CONFIGS,
 } from '@/store/useShowcaseStore';
+import { useQuestStore } from '@/store/useQuestStore';
 import FoilPackFissure from './FoilPackFissure';
 import UnsealParticleCanvas from './UnsealParticleCanvas';
 import LootRevealGrid from './LootRevealGrid';
@@ -20,7 +22,6 @@ interface PackOpeningStageProps {
   batchCount: number;
   affiliation?: { shape?: BadgeShape; projectId?: string };
   onClose: () => void;
-  onBatchSummary: (pulls: Badge[]) => void;
 }
 
 type StagePhase = 'tapping' | 'bursting' | 'revealing' | 'resolved';
@@ -30,23 +31,27 @@ export default function PackOpeningStage({
   batchCount,
   affiliation,
   onClose,
-  onBatchSummary,
 }: PackOpeningStageProps) {
   const openPacksBatch = useShowcaseStore((state) => state.openPacksBatch);
   const buyPacks = useShowcaseStore((state) => state.buyPacks);
   const unopenedPacks = useShowcaseStore((state) => state.unopenedPacks);
   const inkBalance = useShowcaseStore((state) => state.inkBalance);
 
+  const pauseQuestToasts = useQuestStore((state) => state.pauseQuestToasts);
+  const resumeQuestToasts = useQuestStore((state) => state.resumeQuestToasts);
+
   const [phase, setPhase] = useState<StagePhase>('tapping');
   const [tapCount, setTapCount] = useState<number>(0);
+  const [activeBatchCount, setActiveBatchCount] = useState<number>(batchCount);
   const [pulledBadges, setPulledBadges] = useState<Badge[] | null>(null);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const theme = getPackTheme(packType);
+  const hasPulledRef = useRef<boolean>(false);
+  const pulledBadgesRef = useRef<Badge[] | null>(null);
 
+  const theme = getPackTheme(packType);
   const ownedPacksRemaining = unopenedPacks[packType] || 0;
   const packCost = PACK_CONFIGS[packType].cost;
-  const canAffordBatch = inkBalance >= packCost * batchCount;
   const canAffordSingle = inkBalance >= packCost;
 
   const clearTimers = () => {
@@ -54,36 +59,55 @@ export default function PackOpeningStage({
     timersRef.current = [];
   };
 
-  const executePull = (count: number): Badge[] | null => {
+  // Ensure quest toasts are never left paused if the user navigates away mid-animation
+  useEffect(() => {
+    return () => {
+      resumeQuestToasts();
+    };
+  }, [resumeQuestToasts]);
+
+  // Resume deferred quest toasts the moment cards reveal on screen
+  useEffect(() => {
+    if (phase === 'revealing' || phase === 'resolved') {
+      resumeQuestToasts();
+    }
+  }, [phase, resumeQuestToasts]);
+
+  const executePullOnce = (count: number): Badge[] | null => {
+    if (hasPulledRef.current) {
+      return pulledBadgesRef.current;
+    }
+
+    hasPulledRef.current = true;
+    pauseQuestToasts();
+
     const pulls = openPacksBatch(packType, count, affiliation);
     if (pulls && pulls.length > 0) {
+      pulledBadgesRef.current = pulls;
       setPulledBadges(pulls);
       return pulls;
     }
+
+    resumeQuestToasts();
     return null;
   };
 
-  // Automated Opening Sequencer
+  // Automated Opening Sequencer (StrictMode-safe)
   useEffect(() => {
     if (phase !== 'tapping') return;
 
-    // Check prefers-reduced-motion for instant resolution
     const prefersReducedMotion =
       typeof window !== 'undefined' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const pulls = executePull(batchCount);
+    const pulls = executePullOnce(activeBatchCount);
     if (!pulls) {
       onClose();
       return;
     }
 
     if (prefersReducedMotion) {
-      if (batchCount > 1) {
-        onBatchSummary(pulls);
-      } else {
-        setPhase('resolved');
-      }
+      setPhase('resolved');
       return;
     }
 
@@ -106,57 +130,49 @@ export default function PackOpeningStage({
     return () => {
       clearTimers();
     };
-  }, [phase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, activeBatchCount]);
 
   const handleBurstComplete = () => {
-    if (batchCount > 1 && pulledBadges) {
-      onBatchSummary(pulledBadges);
-    } else {
-      setPhase('revealing');
-    }
+    setPhase('revealing');
   };
 
-  // Option 1: Explicit Skip Button Handler
   const handleSkip = () => {
     clearTimers();
-
-    let currentPulls = pulledBadges;
-    if (!currentPulls) {
-      currentPulls = executePull(batchCount);
-    }
+    const currentPulls = executePullOnce(activeBatchCount);
     if (!currentPulls) {
       onClose();
       return;
     }
-
-    if (batchCount > 1) {
-      onBatchSummary(currentPulls);
-    } else {
-      setPhase('resolved');
-    }
+    setPhase('resolved');
   };
 
-  const handleOpenAnotherOwned = () => {
+  const startNewCycle = (nextCount: number) => {
     clearTimers();
+    hasPulledRef.current = false;
+    pulledBadgesRef.current = null;
     setTapCount(0);
     setPulledBadges(null);
+    setActiveBatchCount(nextCount);
     setPhase('tapping');
   };
 
+  const handleOpenAnotherOwned = () => {
+    const nextCount = Math.min(activeBatchCount, ownedPacksRemaining);
+    if (nextCount <= 0) return;
+    startNewCycle(nextCount);
+  };
+
   const handleQuickBuyAndOpenAnother = () => {
-    const countToBuy = ownedPacksRemaining >= batchCount ? batchCount : 1;
-    const bought = buyPacks(packType, countToBuy);
+    const bought = buyPacks(packType, 1);
     if (bought) {
-      clearTimers();
-      setTapCount(0);
-      setPulledBadges(null);
-      setPhase('tapping');
+      startNewCycle(1);
     }
   };
 
   return (
-    <div className="relative w-full min-h-[440px] flex flex-col items-center justify-center p-4 overflow-visible">
-      {/* Option 1: Corner Skip Button (Active strictly during animation phases) */}
+    <div className="relative w-full min-h-[420px] lg:flex-1 flex flex-col items-center justify-center p-4 overflow-visible">
+      {/* Corner Skip Button (Active strictly during animation phases) */}
       {(phase === 'tapping' || phase === 'bursting') && (
         <div className="absolute top-2 right-2 z-40">
           <Button
@@ -178,7 +194,7 @@ export default function PackOpeningStage({
 
       {/* Automated Foil Pack & Status Feedback */}
       {(phase === 'tapping' || phase === 'bursting') && (
-        <div className="relative flex flex-col items-center">
+        <div className="relative flex flex-col items-center my-auto">
           <FoilPackFissure
             packType={packType}
             tapCount={tapCount}
@@ -187,39 +203,50 @@ export default function PackOpeningStage({
           />
           <div className="flex items-center gap-2 text-xs text-neutral-400 font-medium tracking-wide mt-4">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-            <span>Opening pack...</span>
+            <span>
+              {activeBatchCount > 1
+                ? `Opening ${activeBatchCount} packs...`
+                : 'Opening pack...'}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Loot Reveal Grid (Single & Batch) */}
+      {/* Unified Loot Reveal Grid (Single & Batch) */}
       {(phase === 'revealing' || phase === 'resolved') && pulledBadges && (
-        <div className="flex flex-col items-center gap-5 w-full animate-in fade-in duration-300">
+        <div className="flex flex-col items-center justify-between gap-4 w-full my-auto animate-in fade-in duration-300">
           <LootRevealGrid
             badges={pulledBadges}
             isSkipped={phase === 'resolved'}
-            isBatch={batchCount > 1}
+            isBatch={activeBatchCount > 1}
           />
 
           {/* Action Row */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-            {ownedPacksRemaining >= batchCount && (
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-1 shrink-0">
+            {ownedPacksRemaining > 0 && (
               <Button
                 type="button"
                 onClick={handleOpenAnotherOwned}
                 size="sm"
-                className="h-8 px-4 text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg border border-neutral-700 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                className="h-9 px-4 text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl border border-neutral-700 flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
               >
-                <RefreshCw size={13} /> Open Another {batchCount > 1 ? `${batchCount}x` : ''} ({ownedPacksRemaining} left)
+                <RefreshCw size={13} />
+                <span>
+                  Open Another{' '}
+                  {Math.min(activeBatchCount, ownedPacksRemaining) > 1
+                    ? `${Math.min(activeBatchCount, ownedPacksRemaining)}x `
+                    : ''}
+                  ({ownedPacksRemaining} left)
+                </span>
               </Button>
             )}
 
-            {ownedPacksRemaining < batchCount && (canAffordBatch || canAffordSingle) && (
+            {ownedPacksRemaining === 0 && canAffordSingle && (
               <Button
                 type="button"
                 onClick={handleQuickBuyAndOpenAnother}
                 size="sm"
-                className={`h-8 px-4 text-xs font-bold rounded-lg flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 ${theme.btn}`}
+                className={`h-9 px-4 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 ${theme.btn}`}
               >
                 <ShoppingBag size={13} /> Buy & Open 1x (-{packCost} Ink)
               </Button>
@@ -229,7 +256,7 @@ export default function PackOpeningStage({
               type="button"
               onClick={onClose}
               size="sm"
-              className="h-8 px-5 text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg border border-neutral-700 shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+              className="h-9 px-5 text-xs font-bold bg-neutral-800 hover:bg-neutral-700 text-white rounded-xl border border-neutral-700 shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
             >
               <Check size={13} /> Done
             </Button>

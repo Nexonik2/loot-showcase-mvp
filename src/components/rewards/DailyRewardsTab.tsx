@@ -70,12 +70,12 @@ export default function DailyRewardsTab({
   const totalDailyPayout = faucetBaseClaim + inscriptionYield;
 
   return (
-    <div className="flex flex-col gap-5 w-full">
+    <div className="flex flex-col gap-3 w-full">
       {/* 1. Daily Streak Faucet Card */}
-      <div className="p-3.5 sm:p-4 rounded-xl border border-neutral-800 bg-gradient-to-b from-neutral-900 to-neutral-950 flex flex-col items-start gap-3.5 shadow-sm w-full">
-        <div className="flex items-center gap-3 w-full">
-          <div className="w-10 h-10 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-center shrink-0">
-            <Flame size={18} className="text-amber-500 animate-pulse" />
+      <div className="p-3 rounded-xl border border-neutral-800 bg-gradient-to-b from-neutral-900 to-neutral-950 flex flex-col items-start gap-2.5 shadow-sm w-full">
+        <div className="flex items-center gap-2.5 w-full">
+          <div className="w-9 h-9 rounded-lg bg-neutral-950 border border-neutral-800 flex items-center justify-center shrink-0">
+            <Flame size={16} className="text-amber-500 animate-pulse" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -90,7 +90,7 @@ export default function DailyRewardsTab({
               )}
             </div>
 
-            <div className="flex items-center gap-3 text-[11px] text-neutral-400 mt-1">
+            <div className="flex items-center gap-3 text-[11px] text-neutral-400 mt-0.5 leading-tight">
               <span>Base: {faucetBaseClaim} Ink</span>
               {inscriptionYield > 0 && (
                 <span className="flex items-center gap-1 text-emerald-400 font-mono font-medium">
@@ -104,7 +104,7 @@ export default function DailyRewardsTab({
         <Button
           onClick={onClaimDailyInk}
           disabled={isDailyClaimed}
-          className={`w-full h-8 sm:h-9 font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${
+          className={`w-full h-8 font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${
             !isDailyClaimed
               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
               : 'bg-neutral-800 text-neutral-500 cursor-default'
@@ -125,7 +125,7 @@ export default function DailyRewardsTab({
       </div>
 
       {/* 2. Weekly Quests Tray */}
-      <div className="flex flex-col gap-2.5 w-full">
+      <div className="flex flex-col gap-1.5 w-full">
         <div className="flex items-center justify-between gap-1 text-xs px-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <Target size={13} className="text-purple-400 shrink-0" />
@@ -138,7 +138,7 @@ export default function DailyRewardsTab({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 gap-1.5">
           {weeklyQuests.map((quest) => (
             <DailyQuestCard
               key={quest.id}
@@ -153,7 +153,7 @@ export default function DailyRewardsTab({
       </div>
 
       {/* 3. Active Bounties Tray */}
-      <div className="flex flex-col gap-2.5 w-full">
+      <div className="flex flex-col gap-1.5 w-full">
         <div className="flex items-center justify-between gap-1 text-xs px-0.5">
           <h3 className="text-[11px] font-bold uppercase tracking-wider text-neutral-300 truncate">
             Active Bounties
@@ -163,7 +163,7 @@ export default function DailyRewardsTab({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-1 gap-1.5">
           {dailyQuests.map((quest) => (
             <DailyQuestCard
               key={quest.id}
@@ -178,7 +178,7 @@ export default function DailyRewardsTab({
           {Array.from({ length: Math.max(0, 6 - dailyQuests.length) }).map((_, idx) => (
             <div
               key={`empty-${idx}`}
-              className="h-[68px] rounded-xl border border-dashed border-neutral-800/80 bg-neutral-950/20 flex items-center justify-center"
+              className="h-[54px] rounded-xl border border-dashed border-neutral-800/80 bg-neutral-950/20 flex items-center justify-center"
             >
               <span className="text-[10px] font-mono text-neutral-600">
                 Empty Slot (Refills in {timeUntilReset})
