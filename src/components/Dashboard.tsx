@@ -1,7 +1,7 @@
 // Run inside: frontend/
 // src/components/Dashboard.tsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useShowcaseStore, type PackType, type Badge } from '@/store/useShowcaseStore';
 import DashboardHeader from './dashboard/DashboardHeader';
 import InventorySummary from './dashboard/InventorySummary';
@@ -20,6 +20,9 @@ export default function Dashboard() {
   const inkBalance = useShowcaseStore((state) => state.inkBalance);
   const badges = useShowcaseStore((state) => state.badges);
   const unopenedPacks = useShowcaseStore((state) => state.unopenedPacks);
+  const stagedSlotId = useShowcaseStore((state) => state.stagedSlotId);
+  const stagedBadgeId = useShowcaseStore((state) => state.stagedBadgeId);
+  const setStagedBadgeId = useShowcaseStore((state) => state.setStagedBadgeId);
   const [isRewardsOpen, setIsRewardsOpen] = useState<boolean>(false);
 
   // Desktop active views
@@ -33,6 +36,13 @@ export default function Dashboard() {
   // Forge slotting & shake state
   const [selectedForgeIds, setSelectedForgeIds] = useState<string[]>([]);
   const [isForgeShaking, setIsForgeShaking] = useState<boolean>(false);
+
+  // Auto-switch inventory from Packs to Badges when a Showcase slot is clicked
+  useEffect(() => {
+    if (stagedSlotId !== null) {
+      setInventoryView('badges');
+    }
+  }, [stagedSlotId]);
 
   const totalBadges = Object.keys(badges).length;
   const totalPacks = Object.values(unopenedPacks).reduce((sum, count) => sum + count, 0);
@@ -85,13 +95,8 @@ export default function Dashboard() {
     setSelectedForgeIds([]);
   };
 
-  const handleBadgeClick = (badge: Badge) => {
+  const handleBadgeClick = (stack: Badge & { count: number; ids: string[] }) => {
     if (activeTab === 'forge') {
-      if (selectedForgeIds.includes(badge.id)) {
-        setSelectedForgeIds((prev) => prev.filter((id) => id !== badge.id));
-        return;
-      }
-
       if (selectedForgeIds.length >= 3) {
         setIsForgeShaking(true);
         setTimeout(() => setIsForgeShaking(false), 350);
@@ -100,14 +105,27 @@ export default function Dashboard() {
 
       if (selectedForgeIds.length > 0) {
         const firstBadge = badges[selectedForgeIds[0]];
-        if (firstBadge && firstBadge.tier !== badge.tier) {
+        if (firstBadge && firstBadge.tier !== stack.tier) {
           setIsForgeShaking(true);
           setTimeout(() => setIsForgeShaking(false), 350);
           return;
         }
       }
 
-      setSelectedForgeIds((prev) => [...prev, badge.id]);
+      const nextAvailableId = stack.ids.find((id) => !selectedForgeIds.includes(id));
+      if (nextAvailableId) {
+        setSelectedForgeIds((prev) => [...prev, nextAvailableId]);
+      }
+    } else if (activeTab === 'showcase') {
+      if (stagedBadgeId && stack.ids.includes(stagedBadgeId)) {
+        setStagedBadgeId(null);
+        return;
+      }
+
+      const targetBadgeId = stack.ids[0] ?? stack.id;
+      if (targetBadgeId) {
+        setStagedBadgeId(targetBadgeId);
+      }
     }
   };
 
