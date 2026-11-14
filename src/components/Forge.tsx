@@ -1,4 +1,3 @@
-// Run inside: frontend/
 // src/components/Forge.tsx
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -11,6 +10,7 @@ import {
   ForgeBatchControls,
   ForgeAnvilTrigger,
 } from './forge';
+import WorkbenchHelpBanner from './dashboard/WorkbenchHelpBanner';
 import {
   validateForgeRecipe,
   calculateMaxBatchCount,
@@ -26,6 +26,12 @@ export interface ForgeProps {
   onSelectBadgeIds?: (ids: string[]) => void;
   isShaking?: boolean;
 }
+
+const FORGE_HELP_BULLETS = [
+  'Combine 3 same-tier badges (T5–T2) to mint 1 badge of the next higher tier.',
+  'Valid trios: 3x same Project, 2x same Project + 1x Wildcard, or 3x same Shape (2+1 Projects).',
+  'Use Autofill to quickly slot compatible duplicates from your inventory.',
+];
 
 export default function Forge({
   selectedBadgeIds,
@@ -47,12 +53,10 @@ export default function Forge({
   const [mintedResults, setMintedResults] = useState<Badge[]>([]);
   const [inkSavedAmount, setInkSavedAmount] = useState<number>(0);
 
-  // Slotted badge instances
   const slottedBadges = useMemo(() => {
     return selectedBadgeIds.map((id) => badges[id]).filter(Boolean) as Badge[];
   }, [selectedBadgeIds, badges]);
 
-  // Clear previous inline outcome the moment new badges are slotted
   useEffect(() => {
     if (selectedBadgeIds.length > 0 && mintedResults.length > 0) {
       setMintedResults([]);
@@ -60,17 +64,14 @@ export default function Forge({
     }
   }, [selectedBadgeIds.length, mintedResults.length]);
 
-  // Active tier anchor
   const activeTier = slottedBadges.length > 0 ? slottedBadges[0].tier : null;
 
-  // Recipe validation
   const validation = useMemo(() => {
     return validateForgeRecipe(slottedBadges);
   }, [slottedBadges]);
 
   const costPerCraft = validation.cost || 0;
 
-  // Max batch multiplier calculation
   const maxBatchCount = useMemo(() => {
     return calculateMaxBatchCount(
       slottedBadges,
@@ -81,7 +82,6 @@ export default function Forge({
     );
   }, [slottedBadges, badges, costPerCraft, inkBalance, validation.valid]);
 
-  // Autofill candidate check
   const autoFillCandidate = useMemo(() => {
     return findContextualForgeCandidate(slottedBadges, badges);
   }, [slottedBadges, badges]);
@@ -132,23 +132,19 @@ export default function Forge({
     setInkSavedAmount(0);
     pauseQuestToasts();
 
-    // Strike 1 (0ms)
     setStrikeStep(1);
     forgeAudio.playStrike1();
 
-    // Strike 2 (200ms)
     setTimeout(() => {
       setStrikeStep(2);
       forgeAudio.playStrike2();
     }, 200);
 
-    // Strike 3 (420ms)
     setTimeout(() => {
       setStrikeStep(3);
       forgeAudio.playStrike3();
     }, 420);
 
-    // Transmutation & Quenching (650ms)
     setTimeout(() => {
       const initialInk = inkBalance;
       const results: Badge[] = [];
@@ -195,9 +191,16 @@ export default function Forge({
     <motion.div
       animate={isShaking ? { x: [-5, 5, -4, 4, -2, 2, 0] } : { x: 0 }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className="w-full max-w-xl mx-auto flex flex-col items-center justify-center min-h-0 h-auto lg:h-full lg:flex-1 p-4 sm:p-5 gap-3.5 sm:gap-4"
+      className="w-full max-w-xl mx-auto flex flex-col items-center justify-center min-h-0 h-auto lg:h-full lg:flex-1 p-4 sm:p-5 gap-3.5 sm:gap-4 overflow-y-auto custom-scrollbar"
     >
-      {/* Upper Workbench: Altar Trio + Conduits + Crucible Node (with Inline Outcome) */}
+      {/* Contextual Onboarding Banner / Subtle Guide Toggle */}
+      <WorkbenchHelpBanner
+        tipId="forge"
+        title="How The Forge Works"
+        bullets={FORGE_HELP_BULLETS}
+      />
+
+      {/* Upper Workbench: Altar Trio + Conduits + Crucible Node */}
       <div className="w-full flex flex-col items-center gap-3">
         <ForgeAltarSlots
           slots={[

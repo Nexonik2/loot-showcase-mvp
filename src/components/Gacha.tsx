@@ -12,11 +12,18 @@ import PackTierSelector from './gacha/PackTierSelector';
 import AffiliationBiasSelector from './gacha/AffiliationBiasSelector';
 import UnsealAltar from './gacha/UnsealAltar';
 import PackOpeningStage from './gacha/PackOpeningStage';
+import WorkbenchHelpBanner from './dashboard/WorkbenchHelpBanner';
 
 interface GachaShrineProps {
   selectedPackType?: PackType;
   onSelectPackType?: (pack: PackType) => void;
 }
+
+const GACHA_HELP_BULLETS = [
+  'Each pack unseals 5 badges. Every badge has an independent 5% chance to roll as a Wildcard.',
+  'Explorer Packs let you bias toward a target Shape (50% hit rate); Degen Packs let you bias toward a Project (50% hit rate).',
+  'Tier 1 Legendary badges cannot be pulled from packs—they can only be crafted in The Forge.',
+];
 
 export default function GachaShrine({
   selectedPackType: controlledPackType,
@@ -67,7 +74,16 @@ export default function GachaShrine({
   };
 
   return (
-    <div className="w-full flex flex-col gap-4 p-4 sm:p-5 min-h-0 h-auto lg:h-full lg:flex-1 overflow-y-auto custom-scrollbar">
+    <div className="w-full flex flex-col gap-3.5 sm:gap-4 p-4 sm:p-5 min-h-0 h-auto lg:h-full lg:flex-1 overflow-y-auto custom-scrollbar">
+      {/* Contextual Onboarding Banner / Subtle Guide Toggle */}
+      {!isOpeningActive && (
+        <WorkbenchHelpBanner
+          tipId="gacha"
+          title="How Gacha Shrine Works"
+          bullets={GACHA_HELP_BULLETS}
+        />
+      )}
+
       {/* 1. Pack Tier Selector */}
       <PackTierSelector
         activePackType={activePackType}
@@ -77,7 +93,7 @@ export default function GachaShrine({
 
       {/* 2. Opening Stage (Single & Batch Ritual + Reveal) vs Altar Controls */}
       {isOpeningActive ? (
-        <div className="w-full max-w-xl mx-auto lg:flex-1 flex flex-col justify-center">
+        <div className="w-full max-w-xl mx-auto flex-1 min-h-0 flex flex-col justify-center">
           <PackOpeningStage
             packType={activePackType}
             batchCount={batchCount}
@@ -89,8 +105,7 @@ export default function GachaShrine({
           />
         </div>
       ) : (
-        <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-3.5 sm:gap-4 lg:flex-1 lg:min-h-0">
-          {/* Collapsible Shape / Project Affiliation Pickers */}
+        <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-3.5 sm:gap-4 lg:flex-1 shrink-0">
           <AffiliationBiasSelector
             activePackType={activePackType}
             selectedShapeBias={selectedShapeBias}
@@ -99,7 +114,6 @@ export default function GachaShrine({
             onSelectProjectBias={setSelectedProjectBias}
           />
 
-          {/* Unsealing Altar Centerpiece */}
           <UnsealAltar
             activePackType={activePackType}
             ownedCount={ownedCount}

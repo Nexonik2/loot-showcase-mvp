@@ -54,10 +54,14 @@ export default function DevPanel() {
   };
 
   return (
-    <aside aria-label="Developer Sandbox Tools" className="fixed bottom-6 right-6 z-50">
+    <aside
+      aria-label="Developer Sandbox Tools"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] right-4 lg:bottom-6 lg:right-6 z-50"
+    >
       {/* Floating Toggle Button */}
       {!isOpen && (
         <Button
+          aria-label="Open Developer Tools"
           onClick={() => setIsOpen(true)}
           className="rounded-full w-12 h-12 bg-neutral-900 border border-neutral-700 hover:bg-neutral-800 text-neutral-300 shadow-xl flex items-center justify-center p-0 transition-transform active:scale-95"
         >
@@ -67,13 +71,14 @@ export default function DevPanel() {
 
       {/* Floating Dev Card */}
       {isOpen && (
-        <Card className="w-80 bg-neutral-950 border border-neutral-800 shadow-2xl rounded-xl overflow-hidden">
+        <Card className="w-[calc(100vw-2rem)] max-w-80 bg-neutral-950 border border-neutral-800 shadow-2xl rounded-xl overflow-hidden">
           <CardHeader className="p-3.5 border-b border-neutral-800/80 flex flex-row items-center justify-between bg-neutral-900/60">
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-2 font-mono">
               <Settings size={14} className="text-emerald-400" />
               Dev & Test Tools
             </CardTitle>
             <button
+              aria-label="Close Developer Tools"
               onClick={() => setIsOpen(false)}
               className="text-neutral-500 hover:text-neutral-300 transition-colors p-1"
             >
@@ -81,7 +86,7 @@ export default function DevPanel() {
             </button>
           </CardHeader>
 
-          <CardContent className="p-4 flex flex-col gap-4 text-xs">
+          <CardContent className="p-4 flex flex-col gap-4 text-xs max-h-[calc(100dvh-9.5rem)] lg:max-h-none overflow-y-auto">
             {/* 1. Fast Sandbox Injection */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider font-mono">
@@ -93,7 +98,7 @@ export default function DevPanel() {
                 className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold h-8 text-xs flex items-center justify-center gap-2 shadow-sm rounded-lg transition-all active:scale-95 cursor-pointer"
               >
                 <PackagePlus size={14} />
-                +10 Badges & +3 All Packs
+                +18 Badges & +3 All Packs
               </Button>
             </div>
 

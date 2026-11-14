@@ -1,14 +1,16 @@
+// Run inside: frontend/
 // src/components/rewards/DailyQuestCard.tsx
 
 import React from 'react';
 import type { Quest } from '@/store/useQuestStore';
+import type { PackType } from '@/store/useShowcaseStore';
 import { Button } from '@/components/ui/button';
 import { Droplet, Check, ArrowRight, RefreshCw } from 'lucide-react';
 
 interface DailyQuestCardProps {
   quest: Quest;
   onClaim: (questId: string, isWeekly: boolean, event: React.MouseEvent) => void;
-  onNavigateRoute?: (route: 'forge' | 'gacha' | 'showcase') => void;
+  onNavigateRoute?: (route: 'forge' | 'gacha' | 'showcase', packType?: PackType) => void;
   onReroll?: (questId: string, isWeekly: boolean) => void;
   canReroll?: boolean;
 }
@@ -23,14 +25,23 @@ export default function DailyQuestCard({
   const progressRatio = Math.min(1, quest.currentProgress / quest.target);
   const percent = Math.round(progressRatio * 100);
 
-  const getActionRoute = () => {
+  const getActionRoute = (): 'forge' | 'gacha' | 'showcase' | undefined => {
     if (quest.type.includes('pack_') || quest.type === 'spend_ink') return 'gacha';
     if (quest.type.includes('forge_') || quest.type === 'wildcard') return 'forge';
     if (quest.type.includes('acquire_') || quest.type.includes('tier_')) return 'gacha';
     if (quest.type === 'inscribe') return 'showcase';
     return undefined;
   };
+
+  const getTargetPackType = (): PackType | undefined => {
+    if (quest.type === 'pack_adv') return 'adventurer';
+    if (quest.type === 'pack_degen') return 'degen';
+    if (quest.type === 'pack_any' || quest.type === 'pack_bulk') return 'explorer';
+    return undefined;
+  };
+
   const route = getActionRoute();
+  const targetPack = getTargetPackType();
 
   // Tier color styling: Emerald for Easy, Blue for Medium, Purple for Weekly
   const getTheme = () => {
@@ -48,7 +59,6 @@ export default function DailyQuestCard({
         cardBorder: 'border-neutral-800 hover:border-neutral-700/80',
       };
     }
-    // Default: Easy
     return {
       titleColor: 'text-emerald-400',
       progressBar: 'bg-emerald-500',
@@ -65,7 +75,6 @@ export default function DailyQuestCard({
       {/* Top/Left: Info Section */}
       <div className="flex flex-col gap-1 flex-1 min-w-0">
         <div className="flex items-center gap-1.5 min-w-0">
-          {/* Title rendered with tier colorway */}
           <h4 className={`text-xs font-bold truncate shrink min-w-0 ${theme.titleColor}`}>
             {quest.title}
           </h4>
@@ -87,7 +96,7 @@ export default function DailyQuestCard({
           {quest.description}
         </p>
 
-        {/* Progress Bar (Synchronized with Quest Tier Color) */}
+        {/* Progress Bar */}
         <div className="flex items-center gap-2 mt-0.5 w-full">
           <div className="flex-1 min-w-0 bg-neutral-900 rounded-full h-1.5 border border-neutral-800 overflow-hidden">
             <div
@@ -125,7 +134,7 @@ export default function DailyQuestCard({
           <Button
             type="button"
             size="sm"
-            onClick={() => onNavigateRoute(route)}
+            onClick={() => onNavigateRoute(route, targetPack)}
             className="h-6 sm:h-7 px-2.5 text-[11px] font-semibold border border-neutral-700/80 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-xs shrink-0"
           >
             <span>Go</span>

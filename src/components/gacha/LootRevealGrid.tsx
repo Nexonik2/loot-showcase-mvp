@@ -1,7 +1,7 @@
 // Run inside: frontend/
 // src/components/gacha/LootRevealGrid.tsx
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type { Badge } from '@/store/useShowcaseStore';
 import BadgeCard from '@/components/BadgeCard';
@@ -11,9 +11,10 @@ interface LootRevealGridProps {
   badges: Badge[];
   isSkipped?: boolean;
   isBatch?: boolean;
+  onAllFlipped?: () => void;
 }
 
-interface GroupedPull {
+interface RevealCardItem {
   key: string;
   badge: Badge;
   count: number;
@@ -23,38 +24,19 @@ export default function LootRevealGrid({
   badges,
   isSkipped = false,
   isBatch = false,
+  onAllFlipped,
 }: LootRevealGridProps) {
-  const [flippedIndices, setFlippedIndices] = useState<Set<number>>(
-    isSkipped || isBatch ? new Set(badges.map((_, i) => i)) : new Set()
-  );
+  // Build display list: 5 individual cards for 1x, or grouped stacks (rarest first) for batches
+  const displayItems = useMemo<RevealCardItem[]>(() => {
+    if (!isBatch) {
+      return badges.map((badge) => ({
+        key: badge.id,
+        badge,
+        count: 1,
+      }));
+    }
 
-  const handleCardMount = (index: number) => {
-    if (isSkipped || isBatch) return;
-    setTimeout(() => {
-      setFlippedIndices((prev) => new Set([...prev, index]));
-    }, 200 + index * 90);
-  };
-
-  const summary = useMemo(() => {
-    if (!isBatch) return null;
-    const tierCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    let wildcardCount = 0;
-
-    badges.forEach((b) => {
-      tierCounts[b.tier] = (tierCounts[b.tier] || 0) + 1;
-      if (b.projectId === 'wildcard' || b.shape === 'wildcard') {
-        wildcardCount++;
-      }
-    });
-
-    return { tierCounts, wildcardCount, total: badges.length };
-  }, [badges, isBatch]);
-
-  // Group duplicate pulls for batch opens so 10x / 50x hauls stay compact & scannable
-  const groupedBatchPulls = useMemo<GroupedPull[]>(() => {
-    if (!isBatch) return [];
-    const map = new Map<string, GroupedPull>();
-
+    const map = new Map<string, RevealCardItem>();
     for (const badge of badges) {
       const key = `${badge.tier}-${badge.projectId}-${badge.shape}`;
       const existing = map.get(key);
@@ -73,6 +55,64 @@ export default function LootRevealGrid({
     });
   }, [badges, isBatch]);
 
+  const [flippedIndices, setFlippedIndices] = useState<Set<number>>(() =>
+    isSkipped ? new Set(displayItems.map((_, i) => i)) : new Set()
+  );
+
+  const flipTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // If user clicks "Flip All" / "Skip" mid-cascade, flip every card immediately
+  useEffect(() => {
+    if (isSkipped) {
+      flipTimersRef.current.forEach((t) => clearTimeout(t));
+      flipTimersRef.current = [];
+      setFlippedIndices(new Set(displayItems.map((_, i) => i)));
+    }
+  }, [isSkipped, displayItems]);
+
+  // Clean up pending flip timers on unmount
+  useEffect(() => {
+    return () => {
+      flipTimersRef.current.forEach((t) => clearTimeout(t));
+    };
+  }, []);
+
+  // Notify parent once the last card finishes flipping so the "Flip All" button auto-hides
+  useEffect(() => {
+    if (displayItems.length > 0 && flippedIndices.size >= displayItems.length) {
+      onAllFlipped?.();
+    }
+  }, [flippedIndices.size, displayItems.length, onAllFlipped]);
+
+  const handleCardMount = (index: number) => {
+    if (isSkipped) return;
+    const staggerMs = isBatch ? 65 : 95;
+    const timer = setTimeout(() => {
+      setFlippedIndices((prev) => {
+        if (prev.has(index)) return prev;
+        const next = new Set(prev);
+        next.add(index);
+        return next;
+      });
+    }, 180 + index * staggerMs);
+    flipTimersRef.current.push(timer);
+  };
+
+  const summary = useMemo(() => {
+    if (!isBatch) return null;
+    const tierCounts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let wildcardCount = 0;
+
+    badges.forEach((b) => {
+      tierCounts[b.tier] = (tierCounts[b.tier] || 0) + 1;
+      if (b.projectId === 'wildcard' || b.shape === 'wildcard') {
+        wildcardCount++;
+      }
+    });
+
+    return { tierCounts, wildcardCount, total: badges.length };
+  }, [badges, isBatch]);
+
   const getJackpotRingClass = (badge: Badge) => {
     const isWild = badge.projectId === 'wildcard' || badge.shape === 'wildcard';
     if (isWild || badge.tier === 1) {
@@ -88,13 +128,17 @@ export default function LootRevealGrid({
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center gap-3">
+    <div
+      className={`w-full flex flex-col items-center gap-3 ${
+        isBatch ? 'flex-1 min-h-0 justify-start' : 'justify-center'
+      }`}
+    >
       {summary && (
-        <div className="w-full max-w-xl flex flex-col xs:flex-row items-start xs:items-center justify-between px-3 py-2 rounded-lg bg-neutral-900/90 border border-neutral-800 text-xs gap-2">
+        <div className="w-full max-w-xl flex flex-col xs:flex-row items-start xs:items-center justify-between px-3.5 py-2.5 rounded-xl bg-neutral-900/90 border border-neutral-800 text-xs gap-2 shrink-0">
           <span className="font-bold text-neutral-300">
             Batch Unsealed: <strong className="text-white">{summary.total} Badges</strong>
           </span>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             {[1, 2, 3, 4, 5].map((t) => (
               <span key={t} className="text-[11px] font-mono text-neutral-400">
                 T{t}: <strong className="text-neutral-200">{summary.tierCounts[t] || 0}</strong>
@@ -109,87 +153,65 @@ export default function LootRevealGrid({
         </div>
       )}
 
-      {isBatch ? (
-        <div className="w-full max-w-xl mx-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 pt-2.5 px-1.5 pb-1 max-h-[340px] overflow-y-auto custom-scrollbar">
-          {groupedBatchPulls.map((group, idx) => {
-            const jackpotRing = getJackpotRingClass(group.badge);
+      <div
+        className={`w-full max-w-xl mx-auto flex flex-wrap justify-center content-start gap-2.5 sm:gap-3 pt-2.5 px-2 pb-2 ${
+          isBatch
+            ? 'flex-1 min-h-0 max-h-[460px] lg:max-h-none overflow-y-auto custom-scrollbar'
+            : ''
+        }`}
+      >
+        {displayItems.map((item, idx) => {
+          const isFlipped = isSkipped || flippedIndices.has(idx);
+          const jackpotRing = getJackpotRingClass(item.badge);
 
-            return (
-              <motion.div
-                key={group.key}
-                initial={{ opacity: 0, y: 14, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{
-                  duration: 0.22,
-                  delay: Math.min(idx * 0.025, 0.35),
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-                className={`relative w-[88px] xs:w-[96px] sm:w-[100px] aspect-[3/4] rounded-xl shrink-0 ${jackpotRing}`}
+          return (
+            <motion.div
+              key={item.key}
+              className="w-[92px] xs:w-[100px] sm:w-[106px] [perspective:1000px] shrink-0"
+              initial={isSkipped ? false : { opacity: 0, y: 22, scale: 0.86 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.24,
+                delay: isSkipped ? 0 : Math.min(idx * 0.035, 0.35),
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              onAnimationComplete={() => handleCardMount(idx)}
+            >
+              <div
+                className={`relative w-full aspect-[3/4] transition-transform duration-500 [transform-style:preserve-3d] ${
+                  isFlipped ? '[transform:rotateY(180deg)]' : ''
+                }`}
+                style={{ willChange: 'transform' }}
               >
-                <BadgeCard
-                  tier={group.badge.tier}
-                  projectId={group.badge.projectId}
-                  shape={group.badge.shape}
-                />
-
-                {group.count > 1 && (
-                  <span className="absolute -top-2 -right-1.5 z-20 px-1.5 py-0.5 rounded-full bg-neutral-950 border border-neutral-600/90 text-neutral-100 text-[11px] font-mono font-extrabold leading-none shadow-md">
-                    x{group.count}
-                  </span>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="w-full max-w-xl mx-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 p-1">
-          {badges.map((badge, idx) => {
-            const isFlipped = isSkipped || flippedIndices.has(idx);
-            const jackpotRing = getJackpotRingClass(badge);
-
-            return (
-              <motion.div
-                key={badge.id}
-                className="w-[92px] xs:w-[102px] sm:w-[106px] [perspective:1000px] shrink-0"
-                initial={isSkipped ? false : { opacity: 0, y: 25, scale: 0.85 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{
-                  duration: 0.25,
-                  delay: isSkipped ? 0 : idx * 0.05,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-                onAnimationComplete={() => handleCardMount(idx)}
-              >
-                <div
-                  className={`relative w-full aspect-[3/4] transition-transform duration-500 [transform-style:preserve-3d] ${
-                    isFlipped ? '[transform:rotateY(180deg)]' : ''
-                  }`}
-                  style={{ willChange: 'transform' }}
-                >
-                  {/* Face Down Backing */}
-                  <div className="absolute inset-0 rounded-xl bg-neutral-900 border border-neutral-700/80 p-2 flex flex-col items-center justify-center [backface-visibility:hidden] shadow-md">
-                    <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
-                      <Sparkles size={14} className="text-neutral-500" />
-                    </div>
-                    <span className="text-[10px] font-mono text-neutral-500 mt-2">SEALED</span>
+                {/* Face Down Backing */}
+                <div className="absolute inset-0 rounded-xl bg-neutral-900 border border-neutral-700/80 p-2 flex flex-col items-center justify-center [backface-visibility:hidden] shadow-md">
+                  <div className="w-8 h-8 rounded-lg bg-neutral-800 border border-neutral-700 flex items-center justify-center">
+                    <Sparkles size={14} className="text-neutral-500" />
                   </div>
-
-                  {/* Face Up Badge Card */}
-                  <div
-                    className={`absolute inset-0 rounded-xl [transform:rotateY(180deg)] [backface-visibility:hidden] ${jackpotRing}`}
-                  >
-                    <BadgeCard
-                      tier={badge.tier}
-                      projectId={badge.projectId}
-                      shape={badge.shape}
-                    />
-                  </div>
+                  <span className="text-[10px] font-mono text-neutral-500 mt-2">SEALED</span>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
+
+                {/* Face Up Badge Card + Batch Stack Pill */}
+                <div
+                  className={`absolute inset-0 rounded-xl [transform:rotateY(180deg)] [backface-visibility:hidden] ${jackpotRing}`}
+                >
+                  <BadgeCard
+                    tier={item.badge.tier}
+                    projectId={item.badge.projectId}
+                    shape={item.badge.shape}
+                  />
+
+                  {item.count > 1 && (
+                    <span className="absolute -top-2 -right-1.5 z-20 px-1.5 py-0.5 rounded-full bg-neutral-950 border border-neutral-600/90 text-neutral-100 text-[11px] font-mono font-extrabold leading-none shadow-md">
+                      x{item.count}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

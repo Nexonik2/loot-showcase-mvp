@@ -1,20 +1,21 @@
 // Run inside: frontend/
 // src/components/rewards/RewardsModal.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import DailyRewardsTab from './DailyRewardsTab';
 import SeasonalRewardsTab from './SeasonalRewardsTab';
 import ClaimSparkCanvas, { type SparkBurstPayload } from './ClaimSparkCanvas';
-import { useArchiverStore } from '@/store/useShowcaseStore';
+import { useShowcaseStore, type PackType } from '@/store/useShowcaseStore';
 import { useQuestStore } from '@/store/useQuestStore';
+import { SEASONAL_CALENDAR_CONFIG } from '@/lib/calendarData';
 
 interface RewardsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigateActionRoute?: (route: 'forge' | 'gacha' | 'showcase') => void;
+  onNavigateActionRoute?: (route: 'forge' | 'gacha' | 'showcase', packType?: PackType) => void;
 }
 
 export default function RewardsModal({
@@ -25,30 +26,56 @@ export default function RewardsModal({
   const [activeTab, setActiveTab] = useState<'daily' | 'seasonal'>('daily');
   const [activeBurst, setActiveBurst] = useState<SparkBurstPayload | null>(null);
 
-  const {
-    inkBalance,
-    currentDay,
-    currentStreak,
-    isDailyFaucetClaimed,
-    claimedCalendarDays,
-    claimDailyFaucet,
-    claimCalendarDay,
-    addInk,
-  } = useArchiverStore();
+  const inkBalance = useShowcaseStore((state) => state.inkBalance);
+  const currentDay = useShowcaseStore((state) => state.currentDay);
+  const currentStreak = useShowcaseStore((state) => state.currentStreak);
+  const isDailyFaucetClaimed = useShowcaseStore((state) => state.isDailyFaucetClaimed);
+  const claimedCalendarDays = useShowcaseStore((state) => state.claimedCalendarDays);
+  const claimDailyFaucet = useShowcaseStore((state) => state.claimDailyFaucet);
+  const claimCalendarDay = useShowcaseStore((state) => state.claimCalendarDay);
+  const addInk = useShowcaseStore((state) => state.addInk);
 
-  const { 
-    dailyQuests, 
-    weeklyQuests, 
-    dailyRerollsUsed,
-    weeklyRerollsUsed,
-    syncQuests, 
-    claimQuestReward,
-    rerollQuest
-  } = useQuestStore();
+  const dailyQuests = useQuestStore((state) => state.dailyQuests);
+  const weeklyQuests = useQuestStore((state) => state.weeklyQuests);
+  const dailyRerollsUsed = useQuestStore((state) => state.dailyRerollsUsed);
+  const weeklyRerollsUsed = useQuestStore((state) => state.weeklyRerollsUsed);
+  const syncQuests = useQuestStore((state) => state.syncQuests);
+  const claimQuestReward = useQuestStore((state) => state.claimQuestReward);
+  const rerollQuest = useQuestStore((state) => state.rerollQuest);
 
   useEffect(() => {
     syncQuests(currentDay);
   }, [currentDay, syncQuests]);
+
+  // 1. Unclaimed count for Active Bounties tab (Daily Faucet + Completed Quests)
+  const unclaimedBountiesCount = useMemo(() => {
+    const unclaimedQuests =
+      dailyQuests.filter((q) => q.isCompleted && !q.isClaimed).length +
+      weeklyQuests.filter((q) => q.isCompleted && !q.isClaimed).length;
+    const unclaimedFaucet = isDailyFaucetClaimed ? 0 : 1;
+    return unclaimedQuests + unclaimedFaucet;
+  }, [dailyQuests, weeklyQuests, isDailyFaucetClaimed]);
+
+  // 2. Unclaimed count for Seasonal Calendar tab
+  const unclaimedCalendarCount = useMemo(() => {
+    const currentProgressDay = Math.min(40, currentDay);
+    const claimedSet = new Set(claimedCalendarDays);
+    return SEASONAL_CALENDAR_CONFIG.filter(
+      (c) => c.day <= currentProgressDay && !claimedSet.has(c.day)
+    ).length;
+  }, [currentDay, claimedCalendarDays]);
+
+  // Auto-focus Seasonal Calendar tab on open if only calendar rewards are waiting
+  useEffect(() => {
+    if (isOpen) {
+      if (unclaimedBountiesCount === 0 && unclaimedCalendarCount > 0) {
+        setActiveTab('seasonal');
+      } else if (unclaimedBountiesCount > 0) {
+        setActiveTab('daily');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -79,9 +106,9 @@ export default function RewardsModal({
     claimCalendarDay(day);
   };
 
-  const handleNavigate = (route: 'forge' | 'gacha' | 'showcase') => {
+  const handleNavigate = (route: 'forge' | 'gacha' | 'showcase', packType?: PackType) => {
     onClose();
-    onNavigateActionRoute?.(route);
+    onNavigateActionRoute?.(route, packType);
   };
 
   const handleClaimAllCalendar = (days: number[], e: React.MouseEvent) => {
@@ -89,16 +116,12 @@ export default function RewardsModal({
     days.forEach((day) => claimCalendarDay(day));
   };
 
-  const unclaimedQuestsCount = 
-    dailyQuests.filter(q => q.isCompleted && !q.isClaimed).length + 
-    weeklyQuests.filter(q => q.isCompleted && !q.isClaimed).length;
-
   return (
     <>
       <ClaimSparkCanvas burst={activeBurst} onComplete={() => setActiveBurst(null)} />
 
       <AnimatePresence>
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={onClose}
         >
@@ -108,8 +131,9 @@ export default function RewardsModal({
             exit={{ opacity: 0, scale: 0.96, y: 10 }}
             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-3xl h-[92vh] bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"          >
-            {/* Header: Streamlined without icon/description, close button protected */}
+            className="relative w-full max-w-3xl h-[92vh] bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          >
+            {/* Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-neutral-800 bg-neutral-900/90 shrink-0">
               <h2 className="text-sm sm:text-base font-bold text-white tracking-wide truncate pr-2">
                 REWARDS & PROGRESSION
@@ -125,7 +149,7 @@ export default function RewardsModal({
               </button>
             </div>
 
-            {/* Segmented Switcher: Text truncates gracefully on narrow screens */}
+            {/* Segmented Switcher with Per-Tab Unclaimed Counters */}
             <div className="px-3 sm:px-6 pt-3 pb-2 shrink-0">
               <div className="grid grid-cols-2 bg-neutral-950 p-1 rounded-xl border border-neutral-800 text-xs gap-1">
                 <Button
@@ -142,9 +166,9 @@ export default function RewardsModal({
                   <span className="truncate">
                     <span className="hidden sm:inline">Active </span>Bounties
                   </span>
-                  {unclaimedQuestsCount > 0 && (
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 text-neutral-950 font-mono text-[10px] font-bold flex items-center justify-center shrink-0 ml-0.5">
-                      {unclaimedQuestsCount}
+                  {unclaimedBountiesCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-neutral-950 font-mono text-[10px] font-extrabold flex items-center justify-center shrink-0 ml-0.5 leading-none">
+                      {unclaimedBountiesCount}
                     </span>
                   )}
                 </Button>
@@ -164,11 +188,16 @@ export default function RewardsModal({
                     <span className="hidden sm:inline">Seasonal </span>Calendar
                     <span className="hidden sm:inline"> (Day {Math.min(40, currentDay)}/40)</span>
                   </span>
+                  {unclaimedCalendarCount > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-neutral-950 font-mono text-[10px] font-extrabold flex items-center justify-center shrink-0 ml-0.5 leading-none">
+                      {unclaimedCalendarCount}
+                    </span>
+                  )}
                 </Button>
               </div>
             </div>
 
-            {/* Tab Body: Optimized scroll padding */}
+            {/* Tab Body */}
             <div className="px-3 sm:px-6 py-3 sm:py-4 overflow-y-auto custom-scrollbar flex-1">
               {activeTab === 'daily' ? (
                 <DailyRewardsTab

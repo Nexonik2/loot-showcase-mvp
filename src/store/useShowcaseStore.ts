@@ -1,4 +1,5 @@
-// src/store/useShowcaseStore.ts (formerly useArchiverStore.ts)
+// Run inside: frontend/
+// src/store/useShowcaseStore.ts
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -8,6 +9,7 @@ import { calculateShowcaseTotalYield } from "@/lib/inscriptionYield";
 
 export type PackType = 'explorer' | 'adventurer' | 'degen';
 export type BadgeShape = 'circle' | 'square' | 'triangle' | 'hexagon' | 'wildcard';
+export type HelpTipId = 'showcase' | 'forge' | 'gacha';
 
 export interface Badge {
   id: string;
@@ -109,20 +111,25 @@ export interface Traits {
 export interface ShowcaseState {
   inkBalance: number;
   currentDay: number;
-  calendarProgress: number; 
+  calendarProgress: number;
   claimedCalendarDays: number[];
-  currentStreak: number; 
+  currentStreak: number;
   isDailyFaucetClaimed: boolean;
-  claimMultiplierBonus: number; 
-  wildcardTokens: Record<number, number>; 
+  claimMultiplierBonus: number;
+  wildcardTokens: Record<number, number>;
   unopenedPacks: Record<PackType, number>;
   traits: Traits;
-  
+
   slots: Record<number, Badge | null>;
   badges: Record<string, Badge>;
   gachaOdds: Record<PackType, Record<number, number>>;
   unseenBadgeIds: string[];
   markBadgesAsSeen: (badgeIds: string[]) => void;
+
+  // Contextual Onboarding Tips
+  dismissedTips: Record<HelpTipId, boolean>;
+  dismissTip: (tipId: HelpTipId) => void;
+  resetHelpTips: () => void;
 
   // Staged Inscription Pipeline
   stagedSlotId: number | null;
@@ -142,7 +149,7 @@ export interface ShowcaseState {
   resetSlots: () => void;
   resetInventory: () => void;
   forgeBadges: (badgeIdsToBurn: string[], targetTier: number, projectId: string, shape: BadgeShape) => Badge | null;
-  
+
   buyPacks: (packType: PackType, count: number) => boolean;
   openPacksBatch: (
     packType: PackType,
@@ -155,7 +162,6 @@ export interface ShowcaseState {
 
 export const useShowcaseStore = create<ShowcaseState>()(
   persist(
-    // ─── ARGUMENT 1: State Creator Function ──────────────────────────
     (set, get) => ({
       inkBalance: 0,
       currentDay: 1,
@@ -170,11 +176,22 @@ export const useShowcaseStore = create<ShowcaseState>()(
       slots: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null, 8: null },
       badges: {},
       unseenBadgeIds: [],
+      dismissedTips: { showcase: false, forge: false, gacha: false },
       gachaOdds: {
         explorer: { ...PACK_CONFIGS.explorer.odds },
         adventurer: { ...PACK_CONFIGS.adventurer.odds },
         degen: { ...PACK_CONFIGS.degen.odds },
       },
+
+      dismissTip: (tipId) =>
+        set((state) => ({
+          dismissedTips: { ...state.dismissedTips, [tipId]: true },
+        })),
+
+      resetHelpTips: () =>
+        set({
+          dismissedTips: { showcase: false, forge: false, gacha: false },
+        }),
 
       // Transient Staging UI State
       stagedSlotId: null,
@@ -226,7 +243,7 @@ export const useShowcaseStore = create<ShowcaseState>()(
         const nextStreak = state.currentStreak >= 7 ? 1 : state.currentStreak + 1;
         const streakBonusPercent = Math.min(60, nextStreak * 10);
         const basePayout = 150;
-        
+
         const totalMultiplier = 1 + (streakBonusPercent / 100) + state.claimMultiplierBonus;
         const faucetBaseClaim = Math.floor(basePayout * totalMultiplier);
 
@@ -349,6 +366,7 @@ export const useShowcaseStore = create<ShowcaseState>()(
           }
 
           pulledBadges = newPulls;
+          const newPullIds = newPulls.map((b) => b.id);
 
           return {
             badges: updatedBadges,
@@ -359,7 +377,6 @@ export const useShowcaseStore = create<ShowcaseState>()(
           };
         });
 
-        // Action listeners & broadcast outside of set()
         const questStore = useQuestStore.getState();
         questStore.reportActionProgress('pack_any', count);
         questStore.reportActionProgress('pack_bulk', count);
@@ -416,6 +433,7 @@ export const useShowcaseStore = create<ShowcaseState>()(
           return {
             slots: { ...state.slots, [slotId]: badgeToInscribe },
             badges: updatedBadges,
+            unseenBadgeIds: state.unseenBadgeIds.filter((id) => id !== badgeId),
             inkBalance: Math.max(0, state.inkBalance - cost),
           };
         });
@@ -452,18 +470,37 @@ export const useShowcaseStore = create<ShowcaseState>()(
         set(() => ({ slots: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null, 8: null } }));
       },
 
-      resetInventory: () => set(() => ({ badges: {} })),
+      resetInventory: () => set(() => ({ badges: {}, unseenBadgeIds: [] })),
 
       forgeBadges: (badgeIdsToBurn, targetTier, projectId, shape) => {
         let forgedBadge: Badge | null = null;
         let cost = 0;
+        let isPureMerge = false;
+        let usedWildcard = false;
 
         set((state) => {
           if (badgeIdsToBurn.length !== 3) return state;
 
+          const burnedBadges = badgeIdsToBurn
+            .map((id) => state.badges[id])
+            .filter((b): b is Badge => Boolean(b));
+          if (burnedBadges.length !== 3) return state;
+
           const sourceTier = targetTier + 1;
           cost = getForgeCost(sourceTier);
           if (state.inkBalance < cost) return state;
+
+          // Detect Pure Merge (3 identical non-wildcard project & shape badges) and Wildcard usage
+          isPureMerge = burnedBadges.every(
+            (b) =>
+              b.projectId !== 'wildcard' &&
+              b.shape !== 'wildcard' &&
+              b.projectId === burnedBadges[0].projectId &&
+              b.shape === burnedBadges[0].shape
+          );
+          usedWildcard = burnedBadges.some(
+            (b) => b.projectId === 'wildcard' || b.shape === 'wildcard'
+          );
 
           const updatedBadges = { ...state.badges };
           badgeIdsToBurn.forEach((id) => delete updatedBadges[id]);
@@ -474,9 +511,13 @@ export const useShowcaseStore = create<ShowcaseState>()(
             shape,
             tier: targetTier,
           };
-          
+
           updatedBadges[newBadge.id] = newBadge;
           forgedBadge = newBadge;
+
+          const cleanedUnseen = state.unseenBadgeIds.filter(
+            (id) => !badgeIdsToBurn.includes(id)
+          );
 
           return {
             badges: updatedBadges,
@@ -484,12 +525,18 @@ export const useShowcaseStore = create<ShowcaseState>()(
           };
         });
 
-        useQuestStore.getState().reportActionProgress('forge_any', 1);
         if (forgedBadge) {
-          useQuestStore.getState().reportActionProgress('forge_any', 1);
-          useQuestStore.getState().reportActionProgress('forge_bulk', 1);
-          useQuestStore.getState().reportBadgeAcquired(forgedBadge);
-          if (cost > 0) useQuestStore.getState().reportActionProgress('spend_ink', cost);
+          const questStore = useQuestStore.getState();
+          questStore.reportActionProgress('forge_any', 1);
+          questStore.reportActionProgress('forge_bulk', 1);
+          if (isPureMerge) {
+            questStore.reportActionProgress('forge_pure', 1);
+          }
+          if (usedWildcard) {
+            questStore.reportActionProgress('wildcard', 1);
+          }
+          questStore.reportBadgeAcquired(forgedBadge);
+          if (cost > 0) questStore.reportActionProgress('spend_ink', cost);
         }
 
         return forgedBadge;
@@ -511,16 +558,16 @@ export const useShowcaseStore = create<ShowcaseState>()(
             { projectId: 'realms', shape: 'square', tier: 5 },
             { projectId: 'realms', shape: 'hexagon', tier: 5 },
 
-            { projectId: 'genesis', shape: 'triangle', tier: 5 },
-            { projectId: 'genesis', shape: 'triangle', tier: 5 },
-            { projectId: 'genesis', shape: 'triangle', tier: 5 },
+            { projectId: 'banners', shape: 'triangle', tier: 5 },
+            { projectId: 'banners', shape: 'triangle', tier: 5 },
+            { projectId: 'banners', shape: 'triangle', tier: 5 },
 
-            { projectId: 'hyperloot', shape: 'square', tier: 4 },
-            { projectId: 'hyperloot', shape: 'square', tier: 4 },
-            { projectId: 'hyperloot', shape: 'circle', tier: 4 },
+            { projectId: 'rings', shape: 'square', tier: 4 },
+            { projectId: 'rings', shape: 'square', tier: 4 },
+            { projectId: 'rings', shape: 'circle', tier: 4 },
 
-            { projectId: 'bifrost', shape: 'triangle', tier: 4 },
-            { projectId: 'bifrost', shape: 'triangle', tier: 4 },
+            { projectId: 'codex', shape: 'triangle', tier: 4 },
+            { projectId: 'codex', shape: 'triangle', tier: 4 },
             { projectId: 'wildcard', shape: 'wildcard', tier: 4 },
           ];
 
@@ -561,7 +608,6 @@ export const useShowcaseStore = create<ShowcaseState>()(
         })),
     }),
 
-    // ─── ARGUMENT 2: Persistence Configuration Options ───────────────
     {
       name: 'loot-showcase-gameplay-state',
       partialize: (state) => ({
@@ -577,15 +623,11 @@ export const useShowcaseStore = create<ShowcaseState>()(
         traits: state.traits,
         slots: state.slots,
         badges: state.badges,
-        unseenBadgeIds: state.unseenBadgeIds,
-        // stagedSlotId and stagedBadgeId are intentionally omitted so selections reset on reload
+        dismissedTips: state.dismissedTips,
       }),
     }
   )
 );
 
-// ─── Backward-Compatibility Aliases ─────────────────────────────────
-// These allow components still importing `useArchiverStore` or `ArchiverState`
-// to continue working without throwing immediate compiler errors.
 export const useArchiverStore = useShowcaseStore;
 export type ArchiverState = ShowcaseState;

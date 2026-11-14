@@ -42,6 +42,7 @@ export default function PackOpeningStage({
 
   const [phase, setPhase] = useState<StagePhase>('tapping');
   const [tapCount, setTapCount] = useState<number>(0);
+  const [isParticlesActive, setIsParticlesActive] = useState<boolean>(false);
   const [activeBatchCount, setActiveBatchCount] = useState<number>(batchCount);
   const [pulledBadges, setPulledBadges] = useState<Badge[] | null>(null);
 
@@ -59,14 +60,12 @@ export default function PackOpeningStage({
     timersRef.current = [];
   };
 
-  // Ensure quest toasts are never left paused if the user navigates away mid-animation
   useEffect(() => {
     return () => {
       resumeQuestToasts();
     };
   }, [resumeQuestToasts]);
 
-  // Resume deferred quest toasts the moment cards reveal on screen
   useEffect(() => {
     if (phase === 'revealing' || phase === 'resolved') {
       resumeQuestToasts();
@@ -114,16 +113,17 @@ export default function PackOpeningStage({
     // Step 1 (0ms): Pack elevates, hairline fissure glows
     setTapCount(1);
 
-    // Step 2 (320ms): Critical strain, jitter, expanding fissures
+    // Step 2 (400ms): Critical strain, jitter, expanding fissures
     const timer1 = setTimeout(() => {
       setTapCount(2);
-    }, 320);
+    }, 400);
 
-    // Step 3 (650ms): Foil breach and particle burst
+    // Step 3 (820ms): Foil breach and extended particle burst
     const timer2 = setTimeout(() => {
       setTapCount(3);
+      setIsParticlesActive(true);
       setPhase('bursting');
-    }, 650);
+    }, 820);
 
     timersRef.current = [timer1, timer2];
 
@@ -133,12 +133,18 @@ export default function PackOpeningStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, activeBatchCount]);
 
-  const handleBurstComplete = () => {
-    setPhase('revealing');
+  // Triggered 520ms into the 1350ms particle burst so cards emerge while sparks continue glowing on top
+  const handleRevealOverlapStart = () => {
+    setPhase((prev) => (prev === 'bursting' ? 'revealing' : prev));
+  };
+
+  const handleParticlesComplete = () => {
+    setIsParticlesActive(false);
   };
 
   const handleSkip = () => {
     clearTimers();
+    setIsParticlesActive(false);
     const currentPulls = executePullOnce(activeBatchCount);
     if (!currentPulls) {
       onClose();
@@ -151,6 +157,7 @@ export default function PackOpeningStage({
     clearTimers();
     hasPulledRef.current = false;
     pulledBadgesRef.current = null;
+    setIsParticlesActive(false);
     setTapCount(0);
     setPulledBadges(null);
     setActiveBatchCount(nextCount);
@@ -170,26 +177,33 @@ export default function PackOpeningStage({
     }
   };
 
+  const isBatch = activeBatchCount > 1;
+
   return (
-    <div className="relative w-full min-h-[420px] lg:flex-1 flex flex-col items-center justify-center p-4 overflow-visible">
-      {/* Corner Skip Button (Active strictly during animation phases) */}
-      {(phase === 'tapping' || phase === 'bursting') && (
-        <div className="absolute top-2 right-2 z-40">
+    <div className="relative w-full min-h-[440px] lg:flex-1 lg:h-full lg:min-h-0 flex flex-col items-center justify-center p-3 sm:p-4 overflow-visible">
+      {/* Corner Skip / Flip-All Button (Active during pre-reveal and 1-by-1 flip cascade) */}
+      {phase !== 'resolved' && (
+        <div className="absolute top-2 right-2 z-50">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={handleSkip}
-            className="h-7 px-2.5 text-xs text-neutral-400 hover:text-white bg-neutral-900/80 border border-neutral-800 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
+            className="h-7 px-2.5 text-xs text-neutral-400 hover:text-white bg-neutral-900/85 border border-neutral-800 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-sm"
           >
-            <FastForward size={13} className="text-amber-400" /> Skip
+            <FastForward size={13} className="text-amber-400" />
+            <span>{phase === 'revealing' ? 'Flip All' : 'Skip'}</span>
           </Button>
         </div>
       )}
 
-      {/* Promoted Canvas FX */}
-      {phase === 'bursting' && (
-        <UnsealParticleCanvas packType={packType} onComplete={handleBurstComplete} />
+      {/* Extended Canvas FX (z-50 + mix-blend-screen so sparks shine over emerging cards) */}
+      {isParticlesActive && (
+        <UnsealParticleCanvas
+          packType={packType}
+          onRevealStart={handleRevealOverlapStart}
+          onComplete={handleParticlesComplete}
+        />
       )}
 
       {/* Automated Foil Pack & Status Feedback */}
@@ -204,25 +218,28 @@ export default function PackOpeningStage({
           <div className="flex items-center gap-2 text-xs text-neutral-400 font-medium tracking-wide mt-4">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
             <span>
-              {activeBatchCount > 1
-                ? `Opening ${activeBatchCount} packs...`
-                : 'Opening pack...'}
+              {isBatch ? `Opening ${activeBatchCount} packs...` : 'Opening pack...'}
             </span>
           </div>
         </div>
       )}
 
-      {/* Unified Loot Reveal Grid (Single & Batch) */}
+      {/* Unified Loot Reveal Grid: Stretches full height on batches, centered on 1x */}
       {(phase === 'revealing' || phase === 'resolved') && pulledBadges && (
-        <div className="flex flex-col items-center justify-between gap-4 w-full my-auto animate-in fade-in duration-300">
+        <div
+          className={`flex flex-col items-center gap-3.5 w-full animate-in fade-in duration-300 ${
+            isBatch ? 'flex-1 min-h-0 h-full justify-between' : 'my-auto justify-center'
+          }`}
+        >
           <LootRevealGrid
             badges={pulledBadges}
             isSkipped={phase === 'resolved'}
-            isBatch={activeBatchCount > 1}
+            isBatch={isBatch}
+            onAllFlipped={() => setPhase('resolved')}
           />
 
           {/* Action Row */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-1 shrink-0">
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-1 shrink-0">
             {ownedPacksRemaining > 0 && (
               <Button
                 type="button"

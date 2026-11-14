@@ -1,8 +1,10 @@
 // Run inside: frontend/
 // src/components/dashboard/ShowcaseView.tsx
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import BadgeCard from '@/components/BadgeCard';
+import WorkbenchHelpBanner from './WorkbenchHelpBanner';
+import ShowcaseConfirmCard, { type StagedSynergyPill } from './ShowcaseConfirmCard';
 import { useShowcaseStore, INSCRIBE_SETTINGS } from '@/store/useShowcaseStore';
 import {
   ADJACENCY_MAP,
@@ -10,17 +12,28 @@ import {
   calculateShowcaseTotalYield,
   type SynergyType,
 } from '@/lib/inscriptionYield';
-import { Droplet, AlertTriangle, Check, ShieldAlert } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import {
+  Droplet,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  ArrowRight,
+} from 'lucide-react';
+
+const SHOWCASE_HELP_BULLETS = [
+  'Tap any of the 8 slots and select a badge from your inventory to inscribe it for daily bonus Ink.',
+  'Inscribed badges are soulbound: overwriting an occupied slot permanently replaces the previous badge.',
+  'Place matching Projects or Shapes next to each other (up/down/left/right) to boost both neighbors.',
+];
 
 const getSynergyStroke = (type: SynergyType): string => {
   switch (type) {
     case 'dual':
-      return 'rgba(245, 158, 11, 0.85)';
+      return 'rgba(245, 158, 11, 0.9)';
     case 'project':
-      return 'rgba(16, 185, 129, 0.85)';
+      return 'rgba(16, 185, 129, 0.9)';
     case 'shape':
-      return 'rgba(139, 92, 246, 0.85)';
+      return 'rgba(139, 92, 246, 0.9)';
     default:
       return 'rgba(38, 38, 38, 0.35)';
   }
@@ -35,7 +48,6 @@ const getSynergyBadgeClass = (multiplier: number): string => {
 
 export default function ShowcaseView() {
   const slots = useShowcaseStore((state) => state.slots);
-  const traits = useShowcaseStore((state) => state.traits);
   const inkBalance = useShowcaseStore((state) => state.inkBalance);
   const badges = useShowcaseStore((state) => state.badges);
 
@@ -46,29 +58,64 @@ export default function ShowcaseView() {
   const confirmInscription = useShowcaseStore((state) => state.confirmInscription);
   const cancelInscription = useShowcaseStore((state) => state.cancelInscription);
 
+  const [isBonusGuideOpen, setIsBonusGuideOpen] = useState(false);
+
   const yieldReport = useMemo(() => calculateShowcaseTotalYield(slots), [slots]);
 
   // Staged Badge & Cost Evaluations
   const stagedBadge = stagedBadgeId ? badges[stagedBadgeId] : null;
-  const isStagedWildcard = stagedBadge?.projectId === 'wildcard' || stagedBadge?.shape === 'wildcard';
+  const isStagedWildcard =
+    stagedBadge?.projectId === 'wildcard' || stagedBadge?.shape === 'wildcard';
   const inscribeCost = stagedBadge ? INSCRIBE_SETTINGS.calculateCost(stagedBadge.tier) : 0;
   const baseYield = stagedBadge ? (BASE_TIER_YIELDS[stagedBadge.tier] ?? 0) : 0;
-  const canAfford = inkBalance >= inscribeCost;
   const occupiedBadge = stagedSlotId ? slots[stagedSlotId] : null;
+  const oldSlotYield = stagedSlotId ? (yieldReport.breakdown[stagedSlotId]?.slotYield ?? 0) : 0;
 
-  // Live Simulation Delta
-  const simulatedYieldDelta = useMemo(() => {
+  // Full Simulated Report (when both a target slot and a valid badge are staged)
+  const simulatedReport = useMemo(() => {
     if (!stagedSlotId || !stagedBadge || isStagedWildcard) return null;
     const hypotheticalSlots = { ...slots, [stagedSlotId]: stagedBadge };
-    const simulatedReport = calculateShowcaseTotalYield(hypotheticalSlots);
+    return calculateShowcaseTotalYield(hypotheticalSlots);
+  }, [slots, stagedSlotId, stagedBadge, isStagedWildcard]);
+
+  const simulatedYieldDelta = useMemo(() => {
+    if (!simulatedReport) return null;
     return simulatedReport.totalYield - yieldReport.totalYield;
-  }, [slots, stagedSlotId, stagedBadge, isStagedWildcard, yieldReport]);
+  }, [simulatedReport, yieldReport]);
+
+  const thisSlotYield = useMemo(() => {
+    if (!simulatedReport || !stagedSlotId) return null;
+    return simulatedReport.breakdown[stagedSlotId]?.slotYield ?? null;
+  }, [simulatedReport, stagedSlotId]);
+
+  // Extra yield gained (or lost) on the OTHER 7 slots due to mutual neighbor multipliers
+  const neighborBoostDelta = useMemo(() => {
+    if (!simulatedReport || !stagedSlotId) return null;
+    let currentOthersSum = 0;
+    let simulatedOthersSum = 0;
+    for (let id = 1; id <= 8; id++) {
+      if (id === stagedSlotId) continue;
+      currentOthersSum += yieldReport.breakdown[id]?.slotYield ?? 0;
+      simulatedOthersSum += simulatedReport.breakdown[id]?.slotYield ?? 0;
+    }
+    return simulatedOthersSum - currentOthersSum;
+  }, [simulatedReport, yieldReport, stagedSlotId]);
+
+  // Lookup map for previewing SVG conduit edges before confirming inscription
+  const simulatedEdgesByKey = useMemo(() => {
+    if (!simulatedReport) return null;
+    const map: Record<string, SynergyType> = {};
+    for (const edge of simulatedReport.edges) {
+      map[edge.edgeKey] = edge.type;
+    }
+    return map;
+  }, [simulatedReport]);
 
   // Dynamic staged synergy pills with readable neighbor context
-  const stagedSynergies = useMemo(() => {
+  const stagedSynergies = useMemo<StagedSynergyPill[]>(() => {
     if (!stagedSlotId || !stagedBadge || isStagedWildcard) return [];
     const neighbors = ADJACENCY_MAP[stagedSlotId] ?? [];
-    const synergies: Array<{ neighborSlotId: number; label: string; color: string }> = [];
+    const synergies: StagedSynergyPill[] = [];
 
     for (const nId of neighbors) {
       const neighborBadge = slots[nId];
@@ -103,155 +150,135 @@ export default function ShowcaseView() {
   const isPipelineActive = stagedSlotId !== null || stagedBadgeId !== null;
 
   return (
-    <div className="min-h-0 h-auto lg:min-h-[500px] lg:h-full border border-neutral-800 rounded-lg bg-neutral-950/50 p-4 sm:p-5 flex flex-col items-center gap-4 sm:gap-5 justify-center">
+    <div className="min-h-0 h-auto lg:min-h-[500px] lg:h-full border border-neutral-800 rounded-lg bg-neutral-950/50 p-3.5 sm:p-5 flex flex-col items-center gap-3.5 sm:gap-4 justify-center overflow-y-auto custom-scrollbar">
+      {/* 1. Contextual Onboarding Banner / Guide Toggle */}
+      <WorkbenchHelpBanner
+        tipId="showcase"
+        title="How The Showcase Works"
+        bullets={SHOWCASE_HELP_BULLETS}
+      />
 
-      {/* 1. Trait Matrix */}
-      <div className="grid grid-cols-3 gap-2.5 w-full max-w-xl mx-auto">
-        {Object.entries(traits).map(([key, value]) => (
-          <div key={key} className="bg-neutral-950 p-2.5 rounded-lg border border-neutral-800/80 text-center">
-            <div className="text-[10px] text-neutral-500 uppercase tracking-wider font-mono mb-0.5">{key}</div>
-            <div className="text-xs font-semibold capitalize text-neutral-200">{String(value)}</div>
+      {/* 2. Daily Bonus Ink Telemetry Card (with Live Staged Preview & Collapsible Bonus Guide) */}
+      <div className="w-full max-w-xl bg-neutral-900/80 border border-neutral-800 rounded-xl shadow-md mx-auto overflow-hidden shrink-0">
+        <div className="p-3 sm:p-3.5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+            <Droplet size={20} />
           </div>
-        ))}
-      </div>
-
-      {/* 2. Daily Bonus Ink Telemetry Bar (2-Row Layout) */}
-      <div className="w-full max-w-xl bg-neutral-900/80 border border-neutral-800 rounded-xl p-3.5 shadow-md flex items-center gap-3.5 mx-auto">
-        <div className="w-10 h-10 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
-          <Droplet size={20} />
-        </div>
-        <div className="flex-1 min-w-0">
-          {/* Top Row: Hero Total */}
-          <div className="flex items-baseline gap-2">
-            <span className="text-xs font-mono font-bold tracking-wider text-neutral-400 uppercase">
-              Daily Bonus Ink:
-            </span>
-            <span className="text-lg font-black font-mono text-emerald-400">
-              +{yieldReport.totalYield.toFixed(1)} INK
-            </span>
-          </div>
-
-          {/* Bottom Row: Itemized Component Split */}
-          <div className="flex items-center gap-2.5 text-xs font-mono text-neutral-400 mt-0.5 flex-wrap">
-            <span>Base: <strong className="text-neutral-300 font-semibold">{yieldReport.baseYieldSum.toFixed(1)} INK/day</strong></span>
-            <span className="text-neutral-600">•</span>
-            <span className={yieldReport.synergyBonusSum > 0 ? 'text-amber-400' : 'text-neutral-400'}>
-              Neighbor Bonus: <strong className="font-semibold">+{yieldReport.synergyBonusSum.toFixed(1)} INK/day</strong>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Inline Inscription Action Bar */}
-      {isPipelineActive && (
-        <div className="w-full max-w-xl rounded-xl border border-neutral-700 bg-neutral-900/95 p-3 shadow-lg flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 mx-auto">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="px-2 py-0.5 rounded-md bg-neutral-800 border border-neutral-700 text-neutral-200 text-xs font-mono font-bold">
-                {stagedSlotId ? `Slot #${stagedSlotId}` : 'Select a Slot'}
+          <div className="flex-1 min-w-0">
+            {/* Top Row: Hero Total + Live Staged Projection */}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="text-xs font-mono font-bold tracking-wider text-neutral-400 uppercase">
+                Daily Bonus Ink:
+              </span>
+              <span className="text-base sm:text-lg font-black font-mono text-emerald-400">
+                +{yieldReport.totalYield.toFixed(1)} INK
               </span>
 
-              {stagedBadge && (
-                <span className="text-xs font-semibold capitalize text-neutral-200 truncate">
-                  {stagedBadge.projectId} {stagedBadge.shape} (T{stagedBadge.tier})
+              {simulatedReport && simulatedYieldDelta !== null && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950/70 border border-emerald-500/40 text-xs font-mono font-bold text-emerald-300 animate-in fade-in duration-150">
+                  <ArrowRight size={12} className="text-emerald-400" />
+                  <span>+{simulatedReport.totalYield.toFixed(1)} INK</span>
                 </span>
               )}
             </div>
 
-            <span className="text-[10px] font-mono text-neutral-500">
-              {!stagedSlotId ? 'Select target slot' : !stagedBadge ? 'Select badge' : 'Ready to bind'}
-            </span>
-          </div>
-
-          {/* Validation Feedback */}
-          {isStagedWildcard && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-2 text-xs font-medium text-destructive">
-              <ShieldAlert size={14} className="shrink-0" />
-              Wildcard badges can't be inscribed
-            </div>
-          )}
-
-          {/* Base Yield & Neighbor Synergy Breakdown Pills */}
-          {!isStagedWildcard && stagedBadge && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span className="px-2 py-0.5 rounded-full border border-neutral-700 bg-neutral-800/80 text-neutral-300 text-[9px] font-mono font-semibold">
-                Base: +{baseYield} INK/day
-              </span>
-              {stagedSynergies.map((s, idx) => (
-                <span key={idx} className={`px-2 py-0.5 rounded-full border text-[9px] font-mono font-bold ${s.color}`}>
-                  {s.label}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {!isStagedWildcard && occupiedBadge && (
-            <div className="flex items-center gap-2 rounded-md bg-amber-950/40 border border-amber-800/60 p-2 text-[11px] text-amber-300">
-              <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+            {/* Bottom Row: Itemized Base & Neighbor Bonus Split (with Live Preview) */}
+            <div className="flex items-center gap-x-2 gap-y-0.5 text-[11px] sm:text-xs font-mono text-neutral-400 mt-0.5 flex-wrap">
               <span>
-                <strong>Overwrite:</strong> Slot #{stagedSlotId} will replace{' '}
-                <span className="capitalize font-bold">{occupiedBadge.projectId}</span> (T{occupiedBadge.tier}).
-              </span>
-            </div>
-          )}
-
-          {!isStagedWildcard && stagedBadge && !canAfford && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-2 text-xs font-medium text-destructive">
-              <AlertTriangle size={14} className="shrink-0" />
-              Insufficient Ink balance ({inkBalance} / {inscribeCost}).
-            </div>
-          )}
-
-          {/* Action Footer */}
-          <div className="flex items-center justify-between gap-3 pt-1 border-t border-neutral-800">
-            <div className="text-[11px] font-mono">
-              {stagedBadge && !isStagedWildcard ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-neutral-400">
-                    Cost: <strong className="text-white">{inscribeCost} Ink</strong>
-                  </span>
-                  {simulatedYieldDelta !== null && (
-                    <span
-                      className={`text-[10px] font-bold ${
-                        simulatedYieldDelta >= 0 ? 'text-emerald-400' : 'text-neutral-400'
-                      }`}
-                    >
-                      ({simulatedYieldDelta >= 0 ? `+${simulatedYieldDelta.toFixed(1)}` : simulatedYieldDelta.toFixed(1)} INK/day)
+                Base:{' '}
+                <strong className="text-neutral-300 font-semibold">
+                  {yieldReport.baseYieldSum.toFixed(1)}
+                </strong>
+                {simulatedReport &&
+                  simulatedReport.baseYieldSum !== yieldReport.baseYieldSum && (
+                    <span className="text-emerald-400 font-semibold">
+                      {' '}
+                      → {simulatedReport.baseYieldSum.toFixed(1)}
                     </span>
-                  )}
-                </div>
-              ) : (
-                <span className="text-neutral-500">
-                  {!stagedSlotId ? 'Tap a slot below' : 'Tap a badge in inventory'}
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={cancelInscription}
-                className="h-7 px-2.5 text-xs rounded-lg border border-red-900/60 bg-red-950/30 text-red-300 hover:border-red-600 hover:bg-red-900/40 hover:text-white cursor-pointer transition-all active:scale-95"
+                  )}{' '}
+                INK/day
+              </span>
+              <span className="text-neutral-600">•</span>
+              <span
+                className={
+                  yieldReport.synergyBonusSum > 0 ||
+                  (simulatedReport && simulatedReport.synergyBonusSum > 0)
+                    ? 'text-amber-400'
+                    : 'text-neutral-400'
+                }
               >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!stagedSlotId || !stagedBadge || isStagedWildcard || !canAfford}
-                onClick={() => confirmInscription()}
-                className="h-7 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1 cursor-pointer transition-all active:scale-95"
-              >
-                <Check size={13} />
-                Inscribe
-              </Button>
+                Neighbor Bonus:{' '}
+                <strong className="font-semibold">
+                  +{yieldReport.synergyBonusSum.toFixed(1)}
+                </strong>
+                {simulatedReport &&
+                  Math.abs(
+                    simulatedReport.synergyBonusSum - yieldReport.synergyBonusSum
+                  ) > 0.01 && (
+                    <span className="text-emerald-300 font-bold">
+                      {' '}
+                      → +{simulatedReport.synergyBonusSum.toFixed(1)}
+                    </span>
+                  )}{' '}
+                INK/day
+              </span>
             </div>
           </div>
         </div>
-      )}
 
-      {/* 4. 2x4 Inscription Matrix with SVG Conduit Connectors */}
-      <div className="relative w-full max-w-xl mx-auto mt-1 p-2">
+        {/* Attached Collapsible Neighbor Bonus Guide */}
+        <div className="border-t border-neutral-800/80 bg-neutral-950/60">
+          <button
+            type="button"
+            onClick={() => setIsBonusGuideOpen((prev) => !prev)}
+            className="w-full px-3.5 py-1.5 flex items-center justify-between gap-2 text-[11px] font-mono text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50 transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-2">
+              <HelpCircle size={12} className="text-neutral-500 shrink-0" />
+              <span>Neighbor Bonus Guide</span>
+              <span className="inline-flex items-center gap-1 ml-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+              </span>
+            </span>
+            {isBonusGuideOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+
+          {isBonusGuideOpen && (
+            <div className="px-3.5 pb-3 pt-2 border-t border-neutral-800/50 bg-neutral-950/90 text-xs text-neutral-300 flex flex-col gap-2 animate-in fade-in duration-150">
+              <p className="text-[11px] sm:text-xs text-neutral-400 leading-relaxed">
+                Adjacent badges (up, down, left, right) that share traits boost{' '}
+                <strong className="text-neutral-200">both</strong> neighbors&apos; base daily Ink
+                yield:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 font-mono text-[11px]">
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-950/30 border border-emerald-800/50 text-emerald-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span>
+                    <strong>Project:</strong> +25%
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-purple-950/30 border border-purple-800/50 text-purple-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shrink-0" />
+                  <span>
+                    <strong>Shape:</strong> +25%
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-950/30 border border-amber-800/50 text-amber-300">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                  <span>
+                    <strong>Dual (Both):</strong> +50%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 3. 2x4 Inscription Matrix with Active + Preview SVG Conduit Connectors */}
+      <div className="relative w-full max-w-xl mx-auto p-1.5 sm:p-2 shrink-0">
         {/* SVG Conduits strictly on z-0 layer */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none z-0"
@@ -268,8 +295,20 @@ export default function ShowcaseView() {
             const x2 = `${12.5 + colTgt * 25}%`;
             const y2 = `${25 + rowTgt * 50}%`;
 
-            const strokeColor = getSynergyStroke(edge.type);
-            const isSynergized = edge.type !== 'none';
+            const touchesStagedSlot =
+              stagedSlotId !== null &&
+              (edge.sourceSlot === stagedSlotId || edge.targetSlot === stagedSlotId);
+            const previewType = touchesStagedSlot
+              ? simulatedEdgesByKey?.[edge.edgeKey]
+              : undefined;
+            const isPreviewSynergy =
+              Boolean(previewType && previewType !== 'none');
+
+            const effectiveType: SynergyType = isPreviewSynergy
+              ? (previewType as SynergyType)
+              : edge.type;
+            const strokeColor = getSynergyStroke(effectiveType);
+            const isActiveSynergy = edge.type !== 'none' && !touchesStagedSlot;
 
             return (
               <line
@@ -279,9 +318,18 @@ export default function ShowcaseView() {
                 x2={x2}
                 y2={y2}
                 stroke={strokeColor}
-                strokeWidth={isSynergized ? 2.5 : 1}
-                strokeDasharray={isSynergized ? 'none' : '4 4'}
-                className="transition-all duration-300"
+                strokeWidth={isActiveSynergy || isPreviewSynergy ? 3 : 1}
+                strokeDasharray={
+                  isActiveSynergy
+                    ? 'none'
+                    : isPreviewSynergy
+                    ? '6 4'
+                    : '4 4'
+                }
+                opacity={isPreviewSynergy ? 0.85 : 1}
+                className={`transition-all duration-300 ${
+                  isPreviewSynergy ? 'animate-pulse' : ''
+                }`}
               />
             );
           })}
@@ -307,7 +355,6 @@ export default function ShowcaseView() {
                       : 'hover:scale-102'
                   }`}
                 >
-                  {/* Persistent Slot Coordinate Identifier */}
                   <span className="absolute top-1 right-1.5 text-[8px] font-mono font-bold text-neutral-500/70 z-20 pointer-events-none">
                     #{slotId}
                   </span>
@@ -325,7 +372,9 @@ export default function ShowcaseView() {
                   >
                     <span>+{slotData.slotYield.toFixed(1)}</span>
                     {slotData.totalMultiplier > 1.0 && (
-                      <span className="opacity-75 text-[8px]">({slotData.totalMultiplier.toFixed(2)}x)</span>
+                      <span className="opacity-75 text-[8px]">
+                        ({slotData.totalMultiplier.toFixed(2)}x)
+                      </span>
                     )}
                   </div>
                 </div>
@@ -361,18 +410,25 @@ export default function ShowcaseView() {
         </div>
       </div>
 
-      {/* 5. Placement Guide Footer */}
-      <div className="flex items-center justify-center gap-3 sm:gap-4 text-[10px] font-mono text-neutral-500 pt-1">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Project (+25%)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" /> Shape (+25%)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Dual (+50%)
-        </span>
-      </div>
+      {/* 4. Extracted Inline Inscription Confirmation Card */}
+      {isPipelineActive && (
+        <ShowcaseConfirmCard
+          stagedSlotId={stagedSlotId}
+          stagedBadge={stagedBadge}
+          occupiedBadge={occupiedBadge}
+          isStagedWildcard={isStagedWildcard}
+          inscribeCost={inscribeCost}
+          inkBalance={inkBalance}
+          baseYield={baseYield}
+          thisSlotYield={thisSlotYield}
+          neighborBoostDelta={neighborBoostDelta}
+          oldSlotYield={oldSlotYield}
+          simulatedYieldDelta={simulatedYieldDelta}
+          stagedSynergies={stagedSynergies}
+          onCancel={cancelInscription}
+          onConfirm={() => confirmInscription()}
+        />
+      )}
     </div>
   );
 }

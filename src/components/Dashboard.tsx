@@ -2,12 +2,13 @@
 // src/components/Dashboard.tsx
 
 import React, { useState, useEffect } from 'react';
-import { useShowcaseStore, type PackType, type Badge } from '@/store/useShowcaseStore';
+import { useShowcaseStore, type PackType } from '@/store/useShowcaseStore';
 import DashboardHeader from './dashboard/DashboardHeader';
 import InventorySummary from './dashboard/InventorySummary';
 import BadgesInventory from './dashboard/BadgesInventory';
 import PacksInventory from './dashboard/PacksInventory';
 import ShowcaseView from './dashboard/ShowcaseView';
+import BadgeActionModal, { type StackedBadgeItem } from './dashboard/BadgeActionModal';
 import Forge from './Forge';
 import Gacha from './Gacha';
 import MobileBottomNav, { type MobileTab } from './dashboard/MobileBottomNav';
@@ -23,6 +24,8 @@ export default function Dashboard() {
   const stagedSlotId = useShowcaseStore((state) => state.stagedSlotId);
   const stagedBadgeId = useShowcaseStore((state) => state.stagedBadgeId);
   const setStagedBadgeId = useShowcaseStore((state) => state.setStagedBadgeId);
+  const cancelInscription = useShowcaseStore((state) => state.cancelInscription);
+
   const [isRewardsOpen, setIsRewardsOpen] = useState<boolean>(false);
 
   // Desktop active views
@@ -30,36 +33,73 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'showcase' | 'forge' | 'gacha'>('showcase');
   const [selectedGachaPack, setSelectedGachaPack] = useState<PackType>('explorer');
 
-  // Mobile dedicated tab state
-  const [mobileTab, setMobileTab] = useState<MobileTab>('badges');
+  // Mobile dedicated tab state & viewport listener
+  const [mobileTab, setMobileTab] = useState<MobileTab>('showcase');
+  const [isMobile, setIsMobile] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
 
   // Forge slotting & shake state
   const [selectedForgeIds, setSelectedForgeIds] = useState<string[]>([]);
   const [isForgeShaking, setIsForgeShaking] = useState<boolean>(false);
 
-  // Auto-switch inventory from Packs to Badges when a Showcase slot is clicked
+  // Standalone Badge Action Modal state (for mobile Badges view or non-workbench clicks)
+  const [actionModalStack, setActionModalStack] = useState<StackedBadgeItem | null>(null);
+
   useEffect(() => {
-    if (stagedSlotId !== null) {
+    if (typeof window === 'undefined') return;
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    const handleViewportChange = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+      if (e.matches) {
+        // Sync mobileTab to activeTab when resizing from desktop down to mobile
+        setMobileTab((prev) =>
+          prev === 'badges' || prev === 'packs' ? activeTab : activeTab
+        );
+      }
+    };
+    setIsMobile(mediaQuery.matches);
+    mediaQuery.addEventListener('change', handleViewportChange);
+    return () => mediaQuery.removeEventListener('change', handleViewportChange);
+  }, [activeTab]);
+
+  // Desktop-only soft-sync: clicking a Showcase slot switches left column from Packs to Badges
+  useEffect(() => {
+    if (stagedSlotId !== null && !isMobile) {
       setInventoryView('badges');
     }
-  }, [stagedSlotId]);
+  }, [stagedSlotId, isMobile]);
 
   const totalBadges = Object.keys(badges).length;
   const totalPacks = Object.values(unopenedPacks).reduce((sum, count) => sum + count, 0);
 
+  // Clear pending Showcase & Forge selections whenever switching workbenches
+  const clearAllSelections = () => {
+    cancelInscription();
+    setSelectedForgeIds([]);
+    setActionModalStack(null);
+  };
+
+  // Desktop Action Hub tab switcher with desktop-only inventory soft-sync & mobileTab sync
+  const handleDesktopTabChange = (nextTab: 'showcase' | 'forge' | 'gacha') => {
+    if (nextTab !== activeTab) {
+      clearAllSelections();
+      setActiveTab(nextTab);
+    }
+    setMobileTab(nextTab);
+
+    if (!isMobile) {
+      setInventoryView(nextTab === 'gacha' ? 'packs' : 'badges');
+    }
+  };
+
   // Synchronized mobile dock handler
   const handleSelectMobileTab = (tab: MobileTab) => {
+    clearAllSelections();
     setMobileTab(tab);
 
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-
-    if (tab === 'badges') {
-      setInventoryView('badges');
-      if (isMobile) {
-        document.getElementById('inventory-section')?.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else if (tab === 'packs') {
-      setInventoryView('packs');
+    if (tab === 'badges' || tab === 'packs') {
+      setInventoryView(tab);
       if (isMobile) {
         document.getElementById('inventory-section')?.scrollIntoView({ behavior: 'smooth' });
       }
@@ -82,6 +122,7 @@ export default function Dashboard() {
   };
 
   const handleOpenPackInShrine = (packType: PackType) => {
+    clearAllSelections();
     setSelectedGachaPack(packType);
     setActiveTab('gacha');
     setMobileTab('gacha');
@@ -95,8 +136,18 @@ export default function Dashboard() {
     setSelectedForgeIds([]);
   };
 
-  const handleBadgeClick = (stack: Badge & { count: number; ids: string[] }) => {
-    if (activeTab === 'forge') {
+  // Determine which workbench is actively visible to the user right now
+  const isShowcaseWorkbenchVisible = isMobile
+    ? mobileTab === 'showcase'
+    : activeTab === 'showcase';
+  const isForgeWorkbenchVisible = isMobile
+    ? mobileTab === 'forge'
+    : activeTab === 'forge';
+
+  const handleBadgeClick = (stack: StackedBadgeItem) => {
+    if (isForgeWorkbenchVisible) {
+      if (stack.tier === 1) return;
+
       if (selectedForgeIds.length >= 3) {
         setIsForgeShaking(true);
         setTimeout(() => setIsForgeShaking(false), 350);
@@ -116,7 +167,14 @@ export default function Dashboard() {
       if (nextAvailableId) {
         setSelectedForgeIds((prev) => [...prev, nextAvailableId]);
       }
-    } else if (activeTab === 'showcase') {
+      return;
+    }
+
+    if (isShowcaseWorkbenchVisible) {
+      if (stack.projectId === 'wildcard' || stack.shape === 'wildcard') {
+        return;
+      }
+
       if (stagedBadgeId && stack.ids.includes(stagedBadgeId)) {
         setStagedBadgeId(null);
         return;
@@ -126,6 +184,35 @@ export default function Dashboard() {
       if (targetBadgeId) {
         setStagedBadgeId(targetBadgeId);
       }
+      return;
+    }
+
+    setActionModalStack(stack);
+  };
+
+  const handleModalRouteToShowcase = (badgeId: string) => {
+    clearAllSelections();
+    setActiveTab('showcase');
+    setMobileTab('showcase');
+    setInventoryView('badges');
+    setStagedBadgeId(badgeId);
+    if (isMobile) {
+      requestAnimationFrame(() => {
+        document.getElementById('action-hub-section')?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  };
+
+  const handleModalRouteToForge = (badgeId: string) => {
+    clearAllSelections();
+    setActiveTab('forge');
+    setMobileTab('forge');
+    setInventoryView('badges');
+    setSelectedForgeIds([badgeId]);
+    if (isMobile) {
+      requestAnimationFrame(() => {
+        document.getElementById('action-hub-section')?.scrollIntoView({ behavior: 'smooth' });
+      });
     }
   };
 
@@ -161,7 +248,7 @@ export default function Dashboard() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveTab('showcase')}
+                onClick={() => handleDesktopTabChange('showcase')}
                 className={`h-8 font-semibold transition-all ${
                   activeTab === 'showcase'
                     ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
@@ -173,7 +260,7 @@ export default function Dashboard() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveTab('forge')}
+                onClick={() => handleDesktopTabChange('forge')}
                 className={`h-8 font-semibold transition-all ${
                   activeTab === 'forge'
                     ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
@@ -185,7 +272,7 @@ export default function Dashboard() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setActiveTab('gacha')}
+                onClick={() => handleDesktopTabChange('gacha')}
                 className={`h-8 font-semibold transition-all ${
                   activeTab === 'gacha'
                     ? 'bg-neutral-800 text-white shadow-sm border border-neutral-700/60 hover:bg-neutral-800 hover:text-white cursor-default'
@@ -196,7 +283,7 @@ export default function Dashboard() {
               </Button>
             </div>
 
-            {/* Action Hub Card: Matches Left Inventory height seamlessly */}
+            {/* Action Hub Card */}
             <div className="w-full border border-neutral-800 rounded-xl bg-neutral-950/70 shadow-lg min-h-0 h-auto lg:flex-1 lg:h-full flex flex-col justify-center overflow-hidden">
               {activeTab === 'showcase' && <ShowcaseView />}
               {activeTab === 'forge' && (
@@ -255,14 +342,19 @@ export default function Dashboard() {
             {/* Dynamic Viewport Content */}
             {inventoryView === 'badges' ? (
               <div className="w-full flex flex-col gap-4 lg:flex-1 lg:min-h-0">
-                <div className={`w-full shrink-0 ${isSplitWorkbenchMobile ? 'hidden lg:block' : 'block'}`}>
+                <div
+                  className={`w-full shrink-0 ${
+                    isSplitWorkbenchMobile ? 'hidden lg:block' : 'block'
+                  }`}
+                >
                   <InventorySummary badges={badges} />
                 </div>
 
                 <div className="w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                   <BadgesInventory
                     badges={badges}
-                    isForgeActive={activeTab === 'forge'}
+                    isForgeActive={isForgeWorkbenchVisible}
+                    isShowcaseActive={isShowcaseWorkbenchVisible}
                     isCompactMobile={isSplitWorkbenchMobile}
                     selectedForgeIds={selectedForgeIds}
                     onBadgeClick={handleBadgeClick}
@@ -278,12 +370,26 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <BadgeActionModal
+        stack={actionModalStack}
+        onClose={() => setActionModalStack(null)}
+        onSelectShowcase={handleModalRouteToShowcase}
+        onSelectForge={handleModalRouteToForge}
+      />
+
       <RewardsModal
         isOpen={isRewardsOpen}
         onClose={() => setIsRewardsOpen(false)}
-        onNavigateActionRoute={(route) => {
+        onNavigateActionRoute={(route, packType) => {
+          clearAllSelections();
+          if (packType) {
+            setSelectedGachaPack(packType);
+          }
           setActiveTab(route);
           setMobileTab(route);
+          if (!isMobile) {
+            setInventoryView(route === 'gacha' ? 'packs' : 'badges');
+          }
         }}
       />
 

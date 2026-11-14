@@ -17,6 +17,7 @@ interface BadgesInventoryProps {
   selectedForgeIds: string[];
   unseenBadgeIds?: string[];
   isForgeActive?: boolean;
+  isShowcaseActive?: boolean;
   isCompactMobile?: boolean;
   onBadgeClick: (stack: Badge & { count: number; ids: string[] }) => void;
   onHoverStack?: (stackIds: string[]) => void;
@@ -31,27 +32,22 @@ const getBadgeTimestamp = (id: string): number => {
 export default function BadgesInventory({
   badges,
   selectedForgeIds,
-  unseenBadgeIds: propUnseenBadgeIds,
   isForgeActive = false,
+  isShowcaseActive = false,
   isCompactMobile = false,
   onBadgeClick,
-  onHoverStack,
 }: BadgesInventoryProps) {
   const [orderMode, setOrderMode] = useState<OrderMode>('age');
   const [orderDirection, setOrderDirection] = useState<OrderDirection>('desc');
 
-  // Pull store unseen IDs, staged badge ID, and dismissal action
   const stagedBadgeId = useShowcaseStore((state) => state.stagedBadgeId);
-  const storeUnseenBadgeIds = useShowcaseStore((state) => state.unseenBadgeIds);
-  const markBadgesAsSeen = useShowcaseStore((state) => state.markBadgesAsSeen);
-  const effectiveUnseenBadgeIds = propUnseenBadgeIds ?? storeUnseenBadgeIds ?? [];
 
-  // Derive active tier for Forge compatibility lock
+  // Derive active tier for Forge compatibility lock & tier-floating
   const activeForgeTier = useMemo(() => {
-    if (selectedForgeIds.length === 0) return null;
+    if (!isForgeActive || selectedForgeIds.length === 0) return null;
     const firstBadge = badges[selectedForgeIds[0]];
     return firstBadge ? firstBadge.tier : null;
-  }, [selectedForgeIds, badges]);
+  }, [isForgeActive, selectedForgeIds, badges]);
 
   // Handle order selection: clicking a new button sets it to 'desc', clicking active toggles direction
   const handleOrderClick = (mode: OrderMode) => {
@@ -86,6 +82,24 @@ export default function BadgesInventory({
     }, {} as Record<string, Badge & { count: number; ids: string[] }>);
 
     return Object.values(grouped).sort((a, b) => {
+      // Float compatible tier badges to the top when forging
+      if (isForgeActive) {
+        if (activeForgeTier !== null) {
+          const aMatchesTier = a.tier === activeForgeTier ? 0 : 1;
+          const bMatchesTier = b.tier === activeForgeTier ? 0 : 1;
+          if (aMatchesTier !== bMatchesTier) {
+            return aMatchesTier - bMatchesTier;
+          }
+        }
+
+        // Keep forgeable tiers (T2-T5) above unforgeable Tier 1 badges in Forge view
+        const aIsTier1 = a.tier === 1 ? 1 : 0;
+        const bIsTier1 = b.tier === 1 ? 1 : 0;
+        if (aIsTier1 !== bIsTier1) {
+          return aIsTier1 - bIsTier1;
+        }
+      }
+
       if (orderMode === 'age') {
         const timeA = Math.max(...a.ids.map(getBadgeTimestamp));
         const timeB = Math.max(...b.ids.map(getBadgeTimestamp));
@@ -120,28 +134,28 @@ export default function BadgesInventory({
 
       return 0;
     });
-  }, [badges, orderMode, orderDirection]);
+  }, [badges, orderMode, orderDirection, isForgeActive, activeForgeTier]);
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {/* Sorting Control Toolbar: Centered group on < lg so "Order:" stays connected to sort pills */}
-      <div className="flex items-center justify-center lg:justify-between gap-2.5 text-xs text-neutral-400 px-1">
+      {/* Sorting Control Toolbar: Keeps "Order:" connected to the sort pills across all screen widths */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2.5 text-xs text-neutral-400 px-1">
         <span className="font-semibold uppercase tracking-wider text-[11px] text-neutral-500 shrink-0">
           Order:
         </span>
-        <div className="flex items-center gap-1 sm:gap-1.5 bg-neutral-900/60 p-1 rounded-lg border border-neutral-800">
+        <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 bg-neutral-900/60 p-1 rounded-lg border border-neutral-800 max-w-full">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('age')}
-            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 text-[11px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all ${
               orderMode === 'age'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
             }`}
           >
             <Clock size={12} />
-            <span>Age</span>
+            <span>New</span>
             {renderSortIndicator('age')}
           </Button>
 
@@ -149,7 +163,7 @@ export default function BadgesInventory({
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('tier')}
-            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 text-[11px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all ${
               orderMode === 'tier'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -164,7 +178,7 @@ export default function BadgesInventory({
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('project')}
-            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 text-[11px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all ${
               orderMode === 'project'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -179,7 +193,7 @@ export default function BadgesInventory({
             variant="ghost"
             size="sm"
             onClick={() => handleOrderClick('shape')}
-            className={`h-7 px-2 sm:px-2.5 flex items-center gap-1.5 transition-all ${
+            className={`h-7 px-2 sm:px-2.5 text-[11px] sm:text-xs flex items-center gap-1 sm:gap-1.5 transition-all ${
               orderMode === 'shape'
                 ? 'bg-neutral-800 text-white font-semibold'
                 : 'text-neutral-400 hover:text-neutral-200'
@@ -192,7 +206,7 @@ export default function BadgesInventory({
         </div>
       </div>
 
-      {/* Badges Grid: Desktop classes remain untouched; isCompactMobile scales dynamically with viewport height */}
+      {/* Badges Grid */}
       <Card
         className={`bg-neutral-900 border-neutral-800 flex-1 ${
           isCompactMobile ? 'min-h-0 py-3 sm:py-4 lg:py-6 lg:min-h-[550px]' : 'min-h-[550px]'
@@ -216,29 +230,25 @@ export default function BadgesInventory({
               }`}
             >
               {stackedInventory.map((stackedBadge) => {
-                const slottedCount = stackedBadge.ids.filter((id) =>
-                  selectedForgeIds.includes(id)
-                ).length;
+                const slottedCount = isForgeActive
+                  ? stackedBadge.ids.filter((id) => selectedForgeIds.includes(id)).length
+                  : 0;
                 const remainingCount = stackedBadge.count - slottedCount;
-                const isStackNew = stackedBadge.ids.some((id) =>
-                  effectiveUnseenBadgeIds.includes(id)
-                );
-                const isStaged = stagedBadgeId
-                  ? stackedBadge.ids.includes(stagedBadgeId)
-                  : false;
+                const isStaged =
+                  isShowcaseActive && stagedBadgeId
+                    ? stackedBadge.ids.includes(stagedBadgeId)
+                    : false;
 
-                // Forge compatibility check: dim Tier 1 (unforgeable) or mismatched tiers when slots occupied
-                const isCardDisabled =
+                const isWildcard =
+                  stackedBadge.projectId === 'wildcard' || stackedBadge.shape === 'wildcard';
+
+                // Dim incompatible cards strictly for the active visible workbench
+                const isForgeDisabled =
                   isForgeActive &&
                   (stackedBadge.tier === 1 ||
                     (activeForgeTier !== null && stackedBadge.tier !== activeForgeTier));
-
-                const handleMouseEnter = () => {
-                  if (isStackNew) {
-                    markBadgesAsSeen?.(stackedBadge.ids);
-                    onHoverStack?.(stackedBadge.ids);
-                  }
-                };
+                const isShowcaseDisabled = isShowcaseActive && isWildcard;
+                const isCardDisabled = isForgeDisabled || isShowcaseDisabled;
 
                 return (
                   <BadgeCard
@@ -250,11 +260,11 @@ export default function BadgesInventory({
                     isSelected={slottedCount > 0 || isStaged}
                     isSlottedOut={remainingCount === 0}
                     isDisabled={isCardDisabled}
-                    isNew={isStackNew}
-                    onMouseEnter={handleMouseEnter}
-                    onClick={() =>
-                      remainingCount > 0 && !isCardDisabled && onBadgeClick(stackedBadge)
-                    }
+                    onClick={() => {
+                      if (remainingCount > 0 && !isCardDisabled) {
+                        onBadgeClick(stackedBadge);
+                      }
+                    }}
                   />
                 );
               })}

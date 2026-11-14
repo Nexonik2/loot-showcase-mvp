@@ -109,13 +109,13 @@ export default function DashboardHeader({
         <Button
           variant="outline"
           onClick={onOpenRewards}
-          className={`h-10 sm:h-11 px-4 sm:px-5 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 ${
+          className={`h-9 sm:h-10 lg:h-11 px-3.5 sm:px-4 lg:px-5 rounded-xl transition-all active:scale-95 cursor-pointer flex items-center gap-2 ${
             hasUnclaimed
               ? 'border-purple-500/80 bg-purple-950/55 hover:bg-purple-900/65 text-white shadow-[0_0_18px_rgba(168,85,247,0.35)] animate-[pulse_3s_ease-in-out_infinite]'
               : 'border-purple-900/60 bg-purple-950/30 hover:bg-purple-900/40 text-purple-200 hover:text-white shadow-sm'
           }`}
         >
-          <Gift size={16} className="text-purple-300 shrink-0" />
+          <Gift size={15} className="text-purple-300 shrink-0" />
           <span className="font-bold text-xs sm:text-sm tracking-wide">Rewards</span>
         </Button>
       </div>
@@ -141,48 +141,66 @@ export default function DashboardHeader({
       `}</style>
 
       {/* Global Navigation Bar:
-          Left-to-right flow: [LOOT SHOWCASE + Day] -> [Season Countdown] -> [Ink Balance] -> [Rewards]
+          - < 560px (Mobile): 2x2 grid (Top-Left: Brand, Top-Right: Countdown, Bottom-Left: Ink Pill, Bottom-Right: Rewards Button)
+          - 560px–1023px (Medium/Tablet): 3-zone row (Brand left, Countdown center, stacked Ink + Rewards right)
+          - >= 1024px (Desktop): 3-zone row (Brand left, Countdown center, side-by-side Ink + Rewards right)
       */}
-      <nav className="flex flex-wrap sm:flex-nowrap items-center justify-between bg-neutral-900 px-4 py-3.5 sm:px-6 sm:py-4 rounded-xl border border-neutral-800 shadow-md gap-x-3 gap-y-3 sm:gap-4">
-        {/* 1. Left: Branding & Epoch Day */}
-        <div className="order-1 flex flex-col items-start justify-center text-left min-w-0">
+      <nav className="grid grid-cols-[1fr_auto] min-[560px]:flex min-[560px]:flex-row items-center justify-between bg-neutral-900 px-3.5 py-3 sm:px-5 sm:py-3.5 lg:px-6 lg:py-4 rounded-xl border border-neutral-800 shadow-md gap-x-3 gap-y-2.5 min-[560px]:gap-4 lg:gap-6">
+        {/* 1. Left Zone: Branding & Epoch Day */}
+        <div className="order-1 flex flex-col items-start justify-center text-left min-w-0 shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="text-emerald-400 w-5 h-5 shrink-0" />
-            <h1 className="text-base sm:text-lg lg:text-xl font-bold tracking-wider text-white truncate">
+            <Sparkles className="text-emerald-400 w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+            <h1 className="text-sm xs:text-base sm:text-lg lg:text-xl font-bold tracking-wider text-white whitespace-nowrap">
               LOOT SHOWCASE
             </h1>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-mono text-neutral-400 mt-1 sm:pl-7">
-            <span>
+          <div className="flex flex-wrap items-center gap-x-1.5 sm:gap-x-2 gap-y-0.5 text-[10px] xs:text-[11px] sm:text-xs font-mono text-neutral-400 mt-1 sm:pl-7">
+            <span className="whitespace-nowrap">
               Day <strong className="text-neutral-200">{currentDay}/{TOTAL_SEASON_DAYS}</strong>
             </span>
             <span className="text-neutral-600">•</span>
-            <span className="flex items-center gap-1 text-[11px] text-amber-400/90 font-medium">
-              <Clock size={11} /> Next: {epochTimeRemaining || '--:--:--'}
+            <span className="inline-flex items-center gap-1 text-[10px] xs:text-[11px] text-amber-400/90 font-medium whitespace-nowrap">
+              <Clock size={11} className="shrink-0" /> Next: {epochTimeRemaining || '--:--:--'}
             </span>
           </div>
         </div>
 
-        {/* 2. Center: Live Season Countdown */}
-        <div className="order-2 flex items-center justify-end sm:justify-center">
-          <div className="relative px-3.5 py-1.5 sm:px-5 sm:py-2 lg:px-6 rounded-xl border border-red-900/60 bg-gradient-to-b from-red-950/40 via-red-950/20 to-neutral-950 flex flex-row sm:flex-col items-center gap-2 sm:gap-0 shadow-[0_0_20px_rgba(239,68,68,0.15)] ring-1 ring-red-500/20">
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-red-400 tracking-wider sm:tracking-widest uppercase">
-              <Flame size={13} className="text-red-500 animate-pulse shrink-0" />
-              <span className="hidden xs:inline">Season Ends In</span>
-              <span className="xs:hidden">Ends</span>
+        {/* 2. Center Zone (560px+) / Top-Right (< 560px): Live Season Countdown */}
+        <div className="order-2 justify-self-end min-[560px]:justify-self-auto flex items-center justify-center shrink-0">
+          <div className="relative px-3 py-1.5 min-[560px]:px-4 min-[560px]:py-1.5 lg:px-6 lg:py-2 rounded-xl border border-red-900/60 bg-gradient-to-b from-red-950/40 via-red-950/20 to-neutral-950 flex flex-row min-[560px]:flex-col items-center gap-1.5 min-[560px]:gap-0 shadow-[0_0_20px_rgba(239,68,68,0.15)] ring-1 ring-red-500/20">
+            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-red-400 tracking-wider lg:tracking-widest uppercase whitespace-nowrap">
+              <Flame size={12} className="text-red-500 animate-pulse shrink-0" />
+              <span className="hidden min-[560px]:inline">Season Ends In</span>
+              <span className="min-[560px]:hidden">Ends</span>
             </div>
-            <div className="font-mono text-sm sm:text-xl lg:text-2xl font-black text-red-100 tracking-wider sm:mt-0.5 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
+            <div className="font-mono text-xs xs:text-sm min-[560px]:text-base lg:text-2xl font-black text-red-100 tracking-wider min-[560px]:mt-0.5 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)] whitespace-nowrap">
               {seasonTimeRemaining || '--:--:--'}
             </div>
           </div>
         </div>
 
-        {/* 3 & 4. Right Group: Bordered Ink Balance (Left) + Rewards Button (Right) */}
-        <div className="order-3 w-full sm:w-auto flex items-center justify-between sm:justify-end gap-2.5 sm:gap-3 pt-1 sm:pt-0">
-          <div className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-neutral-950/85 border border-neutral-800/90 shadow-inner flex items-center gap-1.5 sm:gap-2 select-none shrink-0">
-            <Droplet size={15} className="text-emerald-400 shrink-0" />
-            <span className="hidden md:inline text-xs text-neutral-400 font-medium">Balance:</span>
-            <span className="font-mono font-bold text-emerald-400 text-xs sm:text-sm tabular-nums">
+        {/* Mobile (< 560px) Bottom-Left: Ink Balance Pill */}
+        <div className="order-3 min-[560px]:hidden justify-self-start flex items-center">
+          <div className="h-9 px-3 rounded-xl bg-neutral-950/85 border border-neutral-800/90 shadow-inner flex items-center gap-1.5 select-none shrink-0">
+            <Droplet size={14} className="text-emerald-400 shrink-0" />
+            <span className="hidden xs:inline text-xs text-neutral-400 font-medium">Balance:</span>
+            <span className="font-mono font-bold text-emerald-400 text-xs tabular-nums whitespace-nowrap">
+              {inkBalance.toLocaleString()} Ink
+            </span>
+          </div>
+        </div>
+
+        {/* Mobile (< 560px) Bottom-Right: Rewards Button (Directly below Countdown for thumb reach) */}
+        <div className="order-4 min-[560px]:hidden justify-self-end flex items-center">
+          {renderRewardsButton()}
+        </div>
+
+        {/* 3. Right Zone (560px+): Stacked on 560px–1023px (Ink on top, Rewards below), Side-by-Side on 1024px+ */}
+        <div className="hidden min-[560px]:flex min-[560px]:order-3 flex-col lg:flex-row items-end lg:items-center justify-center lg:justify-end gap-1.5 lg:gap-3 shrink-0">
+          <div className="h-8 lg:h-11 px-3 lg:px-4 rounded-xl bg-neutral-950/85 border border-neutral-800/90 shadow-inner flex items-center gap-1.5 lg:gap-2 select-none shrink-0">
+            <Droplet size={14} className="text-emerald-400 shrink-0" />
+            <span className="hidden xl:inline text-xs text-neutral-400 font-medium">Balance:</span>
+            <span className="font-mono font-bold text-emerald-400 text-xs lg:text-sm tabular-nums whitespace-nowrap">
               {inkBalance.toLocaleString()} Ink
             </span>
           </div>

@@ -6,7 +6,7 @@ import type { Quest } from '@/store/useQuestStore';
 import DailyQuestCard from './DailyQuestCard';
 import { Button } from '@/components/ui/button';
 import { Flame, Sparkles, Check, Target, Droplet } from 'lucide-react';
-import { useArchiverStore } from '@/store/useShowcaseStore';
+import { useShowcaseStore, type PackType } from '@/store/useShowcaseStore';
 import { calculateShowcaseTotalYield } from '@/lib/inscriptionYield';
 
 interface DailyRewardsTabProps {
@@ -20,7 +20,7 @@ interface DailyRewardsTabProps {
   onClaimDailyInk: (event: React.MouseEvent) => void;
   onClaimQuest: (questId: string, isWeekly: boolean, event: React.MouseEvent) => void;
   onRerollQuest: (questId: string, isWeekly: boolean) => void;
-  onNavigateRoute: (route: 'forge' | 'gacha' | 'showcase') => void;
+  onNavigateRoute: (route: 'forge' | 'gacha' | 'showcase', packType?: PackType) => void;
 }
 
 export default function DailyRewardsTab({
@@ -37,8 +37,8 @@ export default function DailyRewardsTab({
 }: DailyRewardsTabProps) {
   const [timeUntilReset, setTimeUntilReset] = useState<string>('');
 
-  const slots = useArchiverStore((state) => state.slots);
-  const claimMultiplierBonus = useArchiverStore((state) => state.claimMultiplierBonus);
+  const slots = useShowcaseStore((state) => state.slots);
+  const claimMultiplierBonus = useShowcaseStore((state) => state.claimMultiplierBonus);
 
   useEffect(() => {
     const updateTimer = () => {
@@ -79,7 +79,9 @@ export default function DailyRewardsTab({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
-              <h3 className="text-xs sm:text-sm font-bold text-white whitespace-nowrap">Daily Ink Faucet</h3>
+              <h3 className="text-xs sm:text-sm font-bold text-white whitespace-nowrap">
+                Daily Ink Faucet
+              </h3>
               <span className="px-1.5 py-0.2 rounded-full bg-amber-950/60 border border-amber-800/60 text-amber-300 text-[9px] font-mono font-bold whitespace-nowrap">
                 {streakCount}-Day Streak (+{streakBonusPercent}%)
               </span>
