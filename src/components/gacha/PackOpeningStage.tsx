@@ -14,7 +14,7 @@ import FoilPackFissure from './FoilPackFissure';
 import UnsealParticleCanvas from './UnsealParticleCanvas';
 import LootRevealGrid from './LootRevealGrid';
 import { Button } from '@/components/ui/button';
-import { FastForward, Check, RefreshCw, ShoppingBag } from 'lucide-react';
+import { FastForward, Check, RefreshCw, ShoppingBag, Droplet } from 'lucide-react';
 import { getPackTheme } from '@/lib/theme';
 
 interface PackOpeningStageProps {
@@ -265,7 +265,7 @@ export default function PackOpeningStage({
                 size="sm"
                 className={`h-9 px-4 text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95 ${theme.btn}`}
               >
-                <ShoppingBag size={13} /> Buy & Open 1x (-{packCost} Ink)
+                <ShoppingBag size={13} /> Buy & Open 1x (-{packCost} <Droplet/>)
               </Button>
             )}
 

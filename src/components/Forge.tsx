@@ -1,3 +1,4 @@
+// Run inside: frontend/
 // src/components/Forge.tsx
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -191,7 +192,7 @@ export default function Forge({
     <motion.div
       animate={isShaking ? { x: [-5, 5, -4, 4, -2, 2, 0] } : { x: 0 }}
       transition={{ duration: 0.35, ease: 'easeInOut' }}
-      className="w-full max-w-xl mx-auto flex flex-col items-center justify-center min-h-0 h-auto lg:h-full lg:flex-1 p-4 sm:p-5 gap-3.5 sm:gap-4 overflow-y-auto custom-scrollbar"
+      className="w-full max-w-xl mx-auto flex flex-col items-center justify-start lg:justify-center min-h-0 h-auto lg:h-full lg:flex-1 p-3 sm:p-5 gap-2.5 sm:gap-3.5 overflow-y-auto custom-scrollbar"
     >
       {/* Contextual Onboarding Banner / Subtle Guide Toggle */}
       <WorkbenchHelpBanner
@@ -201,7 +202,7 @@ export default function Forge({
       />
 
       {/* Upper Workbench: Altar Trio + Conduits + Crucible Node */}
-      <div className="w-full flex flex-col items-center gap-3">
+      <div className="w-full flex flex-col items-center gap-2.5 sm:gap-3">
         <ForgeAltarSlots
           slots={[
             slottedBadges[0] || null,
@@ -224,7 +225,7 @@ export default function Forge({
       </div>
 
       {/* Lower Controls */}
-      <div className="w-full flex flex-col items-center gap-3">
+      <div className="w-full flex flex-col items-center gap-2.5 sm:gap-3">
         <ForgeBatchControls
           batchCount={batchCount}
           maxBatchCount={maxBatchCount}

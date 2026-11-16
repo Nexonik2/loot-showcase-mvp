@@ -19,27 +19,6 @@ interface UnsealAltarProps {
   onQuickBuyAndOpen: () => void;
 }
 
-const PACK_VISUALS = {
-  explorer: {
-    title: 'Explorer',
-    gradient: 'from-emerald-950 via-emerald-800 to-teal-950',
-    accent: '#10b981',
-    glow: 'rgba(16, 185, 129, 0.35)',
-  },
-  adventurer: {
-    title: 'Adventurer',
-    gradient: 'from-blue-950 via-blue-800 to-indigo-950',
-    accent: '#3b82f6',
-    glow: 'rgba(59, 130, 246, 0.35)',
-  },
-  degen: {
-    title: 'Degen',
-    gradient: 'from-purple-950 via-purple-800 to-fuchsia-950',
-    accent: '#a855f7',
-    glow: 'rgba(168, 85, 247, 0.35)',
-  },
-} as const;
-
 export default function UnsealAltar({
   activePackType,
   ownedCount,
@@ -50,7 +29,6 @@ export default function UnsealAltar({
 }: UnsealAltarProps) {
   const currentConfig = PACK_CONFIGS[activePackType];
   const theme = THEME[activePackType];
-  const packVis = PACK_VISUALS[activePackType];
 
   // Feedback states for disabled interactions
   const [shakingKey, setShakingKey] = useState<string | null>(null);
@@ -130,13 +108,13 @@ export default function UnsealAltar({
 
   return (
     <div
-      className={`w-full max-w-xl mx-auto flex flex-col items-center justify-center lg:flex-1 lg:justify-between p-4 sm:p-5 border ${theme.borderMuted} ${theme.bgMuted} rounded-xl text-center relative overflow-hidden transition-colors`}
+      className={`w-full max-w-xl mx-auto flex flex-col items-center justify-center lg:flex-1 lg:justify-between p-3.5 sm:p-4 border ${theme.borderMuted} ${theme.bgMuted} rounded-xl text-center relative overflow-hidden transition-colors`}
     >
       {/* Interactive Booster Pack Preview */}
       <motion.div
-        animate={{ y: [0, -6, 0] }}
+        animate={{ y: [0, -5, 0] }}
         transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-        className="my-auto"
+        className="my-auto lg:scale-[0.94] origin-center"
       >
         <BoosterPackVisual
           packType={activePackType}
@@ -147,10 +125,10 @@ export default function UnsealAltar({
       </motion.div>
 
       {/* Bottom Action Controls Wrapper */}
-      <div className="w-full flex flex-col items-center mt-3 shrink-0">
+      <div className="w-full flex flex-col items-center mt-2.5 shrink-0">
         {ownedCount > 0 ? (
           /* 2x2 Action Opening Grid (Shown when player owns >= 1 pack) */
-          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full max-w-md sm:max-w-lg">
+          <div className="grid grid-cols-2 gap-2 w-full max-w-md sm:max-w-lg">
             {actionButtons.map((btn) => (
               <motion.div
                 key={btn.key}
@@ -176,7 +154,7 @@ export default function UnsealAltar({
                 <Button
                   type="button"
                   onClick={() => handleButtonClick(btn.count, btn.enabled, btn.key)}
-                  className={`w-full h-10 sm:h-11 rounded-xl text-xs font-medium transition-all ${
+                  className={`w-full h-9 sm:h-10 rounded-xl text-xs font-medium transition-all ${
                     btn.enabled
                       ? `${theme.btn} shadow-md cursor-pointer active:scale-95`
                       : 'bg-white/5 border border-white/10 text-neutral-400/60 shadow-inner cursor-not-allowed hover:bg-white/5 hover:text-neutral-400/60'
@@ -189,7 +167,7 @@ export default function UnsealAltar({
           </div>
         ) : (
           /* Empty Stash Replacement: Replaces 2x2 grid when ownedCount === 0 */
-          <div className="w-full max-w-md flex flex-col items-center gap-2.5 py-2 px-3 rounded-xl">
+          <div className="w-full max-w-md flex flex-col items-center gap-2 py-1.5 px-3 rounded-xl">
             <p className="text-xs text-neutral-400">
               You currently hold <span className="font-mono font-bold text-neutral-200">0</span>{' '}
               {currentConfig.name}s in your inventory.
@@ -198,7 +176,7 @@ export default function UnsealAltar({
               type="button"
               onClick={onQuickBuyAndOpen}
               disabled={inkBalance < currentConfig.cost}
-              className={`w-full max-w-[260px] text-xs h-10 px-5 font-bold rounded-xl transition-all ${
+              className={`w-full max-w-[260px] text-xs h-9 sm:h-10 px-5 font-bold rounded-xl transition-all ${
                 inkBalance >= currentConfig.cost
                   ? `${theme.btn} shadow-md cursor-pointer active:scale-95`
                   : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
@@ -210,7 +188,7 @@ export default function UnsealAltar({
         )}
 
         {/* Wildcard Info Tag */}
-        <div className="flex items-center justify-center gap-1.5 text-xs text-amber-400/90 mt-3 font-medium">
+        <div className="flex items-center justify-center gap-1.5 text-xs text-amber-400/90 mt-2 font-medium">
           <Sparkles size={13} className="text-amber-400 shrink-0" />
           <span>5 badges / pack | wildcard chance: 5%</span>
         </div>

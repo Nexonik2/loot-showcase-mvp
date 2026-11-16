@@ -48,10 +48,10 @@ export default function LootRevealGrid({
     }
 
     return Array.from(map.values()).sort((a, b) => {
+      if (a.badge.tier !== b.badge.tier) return a.badge.tier - b.badge.tier;
       const aWild = a.badge.projectId === 'wildcard' || a.badge.shape === 'wildcard' ? 0 : 1;
       const bWild = b.badge.projectId === 'wildcard' || b.badge.shape === 'wildcard' ? 0 : 1;
-      if (aWild !== bWild) return aWild - bWild;
-      return a.badge.tier - b.badge.tier;
+      return aWild - bWild;
     });
   }, [badges, isBatch]);
 
@@ -113,9 +113,9 @@ export default function LootRevealGrid({
     return { tierCounts, wildcardCount, total: badges.length };
   }, [badges, isBatch]);
 
+  // Strictly match authentic tier colors (Wildcards inherit their own tier color, never forced yellow)
   const getJackpotRingClass = (badge: Badge) => {
-    const isWild = badge.projectId === 'wildcard' || badge.shape === 'wildcard';
-    if (isWild || badge.tier === 1) {
+    if (badge.tier === 1) {
       return 'ring-2 ring-amber-400/80 shadow-[0_0_16px_rgba(251,191,36,0.4)]';
     }
     if (badge.tier === 2) {
@@ -145,7 +145,7 @@ export default function LootRevealGrid({
               </span>
             ))}
             {summary.wildcardCount > 0 && (
-              <span className="text-[11px] font-mono text-amber-400 font-bold ml-1">
+              <span className="text-[11px] font-mono text-neutral-200 font-bold ml-1">
                 ★ {summary.wildcardCount}
               </span>
             )}
@@ -202,7 +202,7 @@ export default function LootRevealGrid({
                   />
 
                   {item.count > 1 && (
-                    <span className="absolute -top-2 -right-1.5 z-20 px-1.5 py-0.5 rounded-full bg-neutral-950 border border-neutral-600/90 text-neutral-100 text-[11px] font-mono font-extrabold leading-none shadow-md">
+                    <span className="absolute -top-1.5 -right-1 z-20 px-1.5 py-0.5 rounded-full bg-neutral-900/95 border border-neutral-700 text-neutral-200 text-[10px] font-mono font-bold leading-none shadow-md">
                       x{item.count}
                     </span>
                   )}

@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuestStore } from '@/store/useQuestStore';
 import { Target, CheckCircle2, Flame, Package } from 'lucide-react';
+import InkDrop from '@/components/ui/InkDrop';
 
 const TOAST_DURATION_MS = 3000;
 
@@ -84,7 +85,7 @@ export default function QuestProgressToast() {
 
                 {activeToast.isCompleted ? (
                   <span className="text-[11px] sm:text-xs md:text-sm font-mono font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-700/70 px-2 py-0.5 rounded-md shrink-0">
-                    +{activeToast.rewardInk} Ink
+                    +{activeToast.rewardInk} <InkDrop/>
                   </span>
                 ) : (
                   <span className="text-[11px] sm:text-xs font-mono font-medium text-neutral-400 shrink-0">

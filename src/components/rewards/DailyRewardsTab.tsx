@@ -80,7 +80,7 @@ export default function DailyRewardsTab({
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5">
               <h3 className="text-xs sm:text-sm font-bold text-white whitespace-nowrap">
-                Daily Ink Faucet
+                Daily Faucet
               </h3>
               <span className="px-1.5 py-0.2 rounded-full bg-amber-950/60 border border-amber-800/60 text-amber-300 text-[9px] font-mono font-bold whitespace-nowrap">
                 {streakCount}-Day Streak (+{streakBonusPercent}%)
@@ -92,11 +92,16 @@ export default function DailyRewardsTab({
               )}
             </div>
 
-            <div className="flex items-center gap-3 text-[11px] text-neutral-400 mt-0.5 leading-tight">
-              <span>Base: {faucetBaseClaim} Ink</span>
+            <div className="flex items-center gap-3 text-[11px] text-neutral-400 mt-0.5 leading-tight font-mono">
+              <span className="inline-flex items-center gap-1">
+                Base: <strong className="text-neutral-200">{faucetBaseClaim}</strong>
+                <Droplet size={11} className="text-emerald-400 fill-emerald-400/25" />
+              </span>
               {inscriptionYield > 0 && (
-                <span className="flex items-center gap-1 text-emerald-400 font-mono font-medium">
-                  <Droplet size={11} /> +{inscriptionYield} Inscription Yield
+                <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+                  +{inscriptionYield}
+                  <Droplet size={11} className="text-emerald-400 fill-emerald-400/25" />
+                  <span>Showcase</span>
                 </span>
               )}
             </div>
@@ -106,7 +111,7 @@ export default function DailyRewardsTab({
         <Button
           onClick={onClaimDailyInk}
           disabled={isDailyClaimed}
-          className={`w-full h-8 font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${
+          className={`w-full h-9 font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-1.5 cursor-pointer transition-transform active:scale-95 ${
             !isDailyClaimed
               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
               : 'bg-neutral-800 text-neutral-500 cursor-default'
@@ -120,7 +125,8 @@ export default function DailyRewardsTab({
           ) : (
             <>
               <Sparkles size={14} />
-              <span>Claim {totalDailyPayout} Ink</span>
+              <span>Claim +{totalDailyPayout}</span>
+              <Droplet size={13} className="text-white fill-white/30" />
             </>
           )}
         </Button>

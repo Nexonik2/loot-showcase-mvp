@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useShowcaseStore, type PackType, PACK_CONFIGS } from '@/store/useShowcaseStore';
 import { PACK_THEMES, TIER_THEMES } from '@/lib/theme';
 import BoosterPackVisual from '@/components/gacha/BoosterPackVisual';
+import InkDrop from '@/components/ui/InkDrop';
 
 interface PacksInventoryProps {
   onOpenInShrine: (packType: PackType) => void;
@@ -83,7 +84,7 @@ export default function PacksInventory({ onOpenInShrine }: PacksInventoryProps) 
               className={`rounded-xl border ${style.borderMuted} ${style.bgMuted} transition-all overflow-hidden flex flex-col`}
             >
               {/* Upper Asset & Drop Odds Overview */}
-              <div className="px-3 sm:px-4 pt-4 pb-3 sm:pb-3.5 flex items-start gap-3.5 sm:gap-4">
+              <div className="p-3 sm:p-3.5 pt-3.5 flex items-center gap-3 sm:gap-3.5">
                 <BoosterPackVisual
                   packType={type}
                   size="sm"
@@ -93,24 +94,37 @@ export default function PacksInventory({ onOpenInShrine }: PacksInventoryProps) 
                 />
 
                 <div className="flex-1 min-w-0 flex flex-col gap-2">
-                  {/* Top Row: Elevated Pack Title (Left) + Bias Mechanic Pill (Top-Right) */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-extrabold text-sm sm:text-base text-neutral-100 leading-tight truncate">
-                      {cfg.name}
-                    </span>
+                  {/* Pack Title, Mechanic Tag & Base Price */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-extrabold text-xs sm:text-sm text-neutral-100 truncate">
+                        {cfg.name}
+                      </span>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border shrink-0 ${style.badge}`}
+                      >
+                        {meta.biasTag}
+                      </span>
+                    </div>
 
-                    <span
-                      className={`text-[10px] sm:text-[11px] font-mono font-bold px-2 py-0.5 rounded-md border shrink-0 ${style.badge}`}
-                    >
-                      {meta.biasTag}
+                    <span className="text-[11px] font-mono text-neutral-400 shrink-0 whitespace-nowrap">
+                      {cfg.cost.toLocaleString()} <InkDrop /> / ea
                     </span>
                   </div>
 
-                  {/* Middle Row: Drop Odds Label + Tier Percentage Chips */}
+                  {/* Segmented Probability Distribution Bar */}
+                  <div className="w-full h-1.5 rounded-full bg-neutral-950 overflow-hidden flex gap-0.5 p-[1px] border border-neutral-800/80">
+                    {meta.segments.map((seg) => (
+                      <div
+                        key={seg.tier}
+                        style={{ width: `${Math.max(seg.pct, 3)}%` }}
+                        className={`h-full first:rounded-l-full last:rounded-r-full ${seg.barClass}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Tier Probability Chips */}
                   <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] font-mono">
-                    <span className="text-neutral-400 font-semibold uppercase tracking-wider text-xs mr-0.5">
-                      Drop Odds
-                    </span>
                     {meta.segments.map((seg) => {
                       const t = TIER_THEMES[seg.tier];
                       return (
@@ -123,41 +137,31 @@ export default function PacksInventory({ onOpenInShrine }: PacksInventoryProps) 
                       );
                     })}
                   </div>
-
-                  {/* Bottom Row: Segmented Probability Distribution Line */}
-                  <div className="w-full h-1.5 rounded-full bg-neutral-950 overflow-hidden flex gap-0.5 p-[1px] border border-neutral-800/80">
-                    {meta.segments.map((seg) => (
-                      <div
-                        key={seg.tier}
-                        style={{ width: `${Math.max(seg.pct, 3)}%` }}
-                        className={`h-full first:rounded-l-full last:rounded-r-full ${seg.barClass}`}
-                      />
-                    ))}
-                  </div>
                 </div>
               </div>
 
               {/* Bottom-Docked Store & Unseal Action Bar */}
-              <div className="px-3 sm:px-4 py-2.5 border-t border-neutral-800/80 bg-neutral-950/65 flex flex-wrap items-center justify-between gap-2">
-                {/* Left Group: Quantity Selector + Adjacent Buy CTA */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="inline-flex items-center bg-neutral-900 p-0.5 rounded-lg border border-neutral-800 shrink-0">
-                    {[1, 5, 10].map((q) => (
-                      <button
-                        key={q}
-                        type="button"
-                        onClick={() => setBuyQuantities((prev) => ({ ...prev, [type]: q }))}
-                        className={`h-7 px-2.5 rounded-md text-[11px] font-mono font-bold transition-colors cursor-pointer ${
-                          qty === q
-                            ? 'bg-neutral-800 text-white shadow-xs'
-                            : 'text-neutral-400 hover:text-neutral-200'
-                        }`}
-                      >
-                        {q}x
-                      </button>
-                    ))}
-                  </div>
+              <div className="px-3 sm:px-3.5 py-2.5 border-t border-neutral-800/80 bg-neutral-950/65 flex flex-wrap items-center justify-between gap-2">
+                {/* Segmented Quantity Switcher */}
+                <div className="inline-flex items-center bg-neutral-900 p-0.5 rounded-lg border border-neutral-800 shrink-0">
+                  {[1, 5, 10].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => setBuyQuantities((prev) => ({ ...prev, [type]: q }))}
+                      className={`h-7 px-2.5 rounded-md text-[11px] font-mono font-bold transition-colors cursor-pointer ${
+                        qty === q
+                          ? 'bg-neutral-800 text-white shadow-xs'
+                          : 'text-neutral-400 hover:text-neutral-200'
+                      }`}
+                    >
+                      {q}x
+                    </button>
+                  ))}
+                </div>
 
+                {/* Primary CTAs: Buy & Open Side-by-Side */}
+                <div className="flex items-center gap-2 ml-auto">
                   <Button
                     size="sm"
                     disabled={!canAfford}
@@ -168,23 +172,32 @@ export default function PacksInventory({ onOpenInShrine }: PacksInventoryProps) 
                         : 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                     }`}
                   >
-                    <ShoppingCart size={13} />
-                    <span>
-                      Buy {qty}x (-{totalCost.toLocaleString()} Ink)
+                    <ShoppingCart size={13} className="shrink-0" />
+                    <span className="whitespace-nowrap">
+                      Buy {qty}x (-{totalCost.toLocaleString()}{' '}
+                      <InkDrop
+                        className={
+                          canAfford
+                            ? 'text-white fill-white/30'
+                            : 'text-neutral-500 fill-neutral-500/20'
+                        }
+                      />
+                      )
+                    </span>
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onOpenInShrine(type)}
+                    className={`h-9 px-3 sm:px-3.5 text-xs font-bold rounded-xl border bg-neutral-900/90 hover:bg-neutral-800 text-neutral-100 flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95 ${style.border}`}
+                  >
+                    <Sparkles size={13} className={`${style.icon} shrink-0`} />
+                    <span className="whitespace-nowrap">
+                      Open Pack{count !== 1 ? 's' : ''}
                     </span>
                   </Button>
                 </div>
-
-                {/* Right Group: Shrine Navigation CTA */}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onOpenInShrine(type)}
-                  className={`h-9 px-3 sm:px-3.5 text-xs font-bold rounded-xl border bg-neutral-900/90 hover:bg-neutral-800 text-neutral-100 flex items-center gap-1.5 cursor-pointer shrink-0 ml-auto active:scale-95 ${style.border}`}
-                >
-                  <Sparkles size={13} className={style.icon} />
-                  <span>Open Pack(s)</span>
-                </Button>
               </div>
             </div>
           );

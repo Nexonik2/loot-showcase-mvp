@@ -74,7 +74,7 @@ export default function GachaShrine({
   };
 
   return (
-    <div className="w-full flex flex-col gap-3.5 sm:gap-4 p-4 sm:p-5 min-h-0 h-auto lg:h-full lg:flex-1 overflow-y-auto custom-scrollbar">
+    <div className="w-full flex flex-col gap-2.5 sm:gap-3 p-3.5 sm:p-4 min-h-0 h-auto lg:h-full lg:flex-1 overflow-y-auto custom-scrollbar">
       {/* Contextual Onboarding Banner / Subtle Guide Toggle */}
       {!isOpeningActive && (
         <WorkbenchHelpBanner
@@ -105,7 +105,7 @@ export default function GachaShrine({
           />
         </div>
       ) : (
-        <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-3.5 sm:gap-4 lg:flex-1 shrink-0">
+        <div className="w-full max-w-xl mx-auto flex flex-col items-center gap-2.5 sm:gap-3 lg:flex-1 shrink-0">
           <AffiliationBiasSelector
             activePackType={activePackType}
             selectedShapeBias={selectedShapeBias}

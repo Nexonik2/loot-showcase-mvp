@@ -2,7 +2,7 @@
 // src/components/dashboard/ShowcaseConfirmCard.tsx
 
 import React from 'react';
-import { AlertTriangle, Check, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Check, ShieldAlert, Droplet } from 'lucide-react';
 import type { Badge } from '@/store/useShowcaseStore';
 import { Button } from '@/components/ui/button';
 
@@ -81,7 +81,7 @@ export default function ShowcaseConfirmCard({
                 : 'text-neutral-300 bg-neutral-800 border-neutral-700'
             }`}
           >
-            Net: {simulatedYieldDelta >= 0 ? `+${simulatedYieldDelta.toFixed(1)}` : simulatedYieldDelta.toFixed(1)} INK/day
+            Net: {simulatedYieldDelta >= 0 ? `+${simulatedYieldDelta.toFixed(1)}` : simulatedYieldDelta.toFixed(1)} <Droplet/>/day
           </span>
         )}
       </div>
@@ -98,7 +98,7 @@ export default function ShowcaseConfirmCard({
       {!isStagedWildcard && stagedBadge && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="px-2.5 py-0.5 rounded-full border border-neutral-700 bg-neutral-800/90 text-neutral-200 text-[11px] font-mono font-semibold">
-            Base: +{baseYield.toFixed(1)} INK/day
+            Base: +{baseYield.toFixed(1)} <Droplet/>/day
           </span>
 
           {stagedSynergies.map((s, idx) => (
@@ -155,7 +155,7 @@ export default function ShowcaseConfirmCard({
         <div className="flex items-center gap-2 rounded-md bg-destructive/15 p-2 text-xs font-medium text-destructive">
           <AlertTriangle size={14} className="shrink-0" />
           <span>
-            Insufficient Ink balance ({inkBalance} / {inscribeCost} Ink).
+            Insufficient <Droplet/> balance ({inkBalance} / {inscribeCost} <Droplet/>).
           </span>
         </div>
       )}
@@ -165,7 +165,7 @@ export default function ShowcaseConfirmCard({
         <div className="text-xs font-mono">
           {stagedBadge && !isStagedWildcard ? (
             <span className="text-neutral-400">
-              Cost: <strong className="text-white">{inscribeCost} Ink</strong>
+              Cost: <strong className="text-white">{inscribeCost} <Droplet/></strong>
             </span>
           ) : (
             <span className="text-neutral-500 text-[11px]">

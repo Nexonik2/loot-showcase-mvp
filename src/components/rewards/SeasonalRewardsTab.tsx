@@ -1,10 +1,11 @@
+// Run inside: frontend/
 // src/components/rewards/SeasonalRewardsTab.tsx
 
 import React, { useRef, useEffect } from 'react';
 import CalendarDayCard from './CalendarDayCard';
 import { SEASONAL_CALENDAR_CONFIG } from '@/lib/calendarData';
 import { Button } from '@/components/ui/button';
-import { Calendar, Zap, ShieldCheck, Target, Sparkles } from 'lucide-react';
+import { Calendar, Zap, ShieldCheck, Target } from 'lucide-react';
 
 interface SeasonalRewardsTabProps {
   currentEpochDay: number;
@@ -17,10 +18,9 @@ export default function SeasonalRewardsTab({
   currentEpochDay,
   claimedCalendarDays,
   onClaimDay,
-  onClaimAll,
 }: SeasonalRewardsTabProps) {
   const currentClaimedSet = new Set(claimedCalendarDays);
-  const currentProgressDay = Math.min(40, currentEpochDay); //[cite: 11]
+  const currentProgressDay = Math.min(40, currentEpochDay);
 
   const activeDayNodeRef = useRef<HTMLDivElement | null>(null);
 
@@ -42,23 +42,9 @@ export default function SeasonalRewardsTab({
     }
   };
 
-  const boostMilestones = [3, 9, 15, 21, 27]; //[cite: 11]
+  const boostMilestones = [3, 9, 15, 21, 27];
   const boostStepsClaimed = boostMilestones.filter((d) => currentClaimedSet.has(d)).length;
-  const cumulativeBoost = boostStepsClaimed * 5; //[cite: 11]
-
-  // Identify all available unclaimed days up to the current progress cap[cite: 11]
-  const unclaimedDays = SEASONAL_CALENDAR_CONFIG
-    .filter((c) => c.day <= currentProgressDay && !currentClaimedSet.has(c.day))
-    .map((c) => c.day);
-
-  const handleClaimAllClick = (e: React.MouseEvent) => {
-    if (onClaimAll) {
-      onClaimAll(unclaimedDays, e);
-    } else {
-      // Fallback: trigger sequential claims if batch callback is omitted
-      unclaimedDays.forEach((day) => onClaimDay(day, e));
-    }
-  };
+  const cumulativeBoost = boostStepsClaimed * 5;
 
   return (
     <div className="flex flex-col gap-3.5">
@@ -107,32 +93,21 @@ export default function SeasonalRewardsTab({
         </div>
       </div>
 
-      {/* 2. Track Navigation & Contextual Claim Bar */}
+      {/* 2. Track Navigation Bar (Jump to Day stays permanently accessible) */}
       <div className="flex items-center justify-between gap-2 px-1">
         <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-300">
           Season Track
         </span>
 
-        {unclaimedDays.length > 1 ? (
-          <Button
-            size="sm"
-            onClick={handleClaimAllClick}
-            className="h-6 sm:h-7 px-3 text-[10px] sm:text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-sm flex items-center gap-1 cursor-pointer active:scale-95 transition-transform shrink-0"
-          >
-            <Sparkles size={11} />
-            <span>Claim All ({unclaimedDays.length})</span>
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleJumpToToday}
-            className="h-6 sm:h-7 px-2.5 text-[10px] sm:text-[11px] font-mono border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
-          >
-            <Target size={11} className="text-emerald-400" />
-            <span>Jump to Day {currentProgressDay}</span>
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleJumpToToday}
+          className="h-6 sm:h-7 px-2.5 text-[10px] sm:text-[11px] font-mono border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded-lg flex items-center gap-1 cursor-pointer shrink-0"
+        >
+          <Target size={11} className="text-emerald-400" />
+          <span>Jump to Day {currentProgressDay}</span>
+        </Button>
       </div>
 
       {/* 3. Vertical Linear Battle Pass List */}

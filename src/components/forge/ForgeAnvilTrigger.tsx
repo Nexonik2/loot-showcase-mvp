@@ -5,6 +5,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Hammer, Sparkles, AlertCircle } from 'lucide-react';
+import InkDrop from '@/components/ui/InkDrop';
 
 interface ForgeAnvilTriggerProps {
   isValid: boolean;
@@ -29,24 +30,38 @@ export default function ForgeAnvilTrigger({
 }: ForgeAnvilTriggerProps) {
   const isReady = isValid && canAfford && !isForging;
 
-  const getButtonText = () => {
+  const renderButtonContent = () => {
     if (isForging) {
-      if (strikeStep === 1) return 'Striking Anvil... (Ping)';
-      if (strikeStep === 2) return 'Forging Core... (Clang)';
-      if (strikeStep === 3) return 'Transmuting... (Crunch)';
-      return 'Quenching Ingot...';
+      if (strikeStep === 1) return <span>Striking Anvil... (Ping)</span>;
+      if (strikeStep === 2) return <span>Forging Core... (Clang)</span>;
+      if (strikeStep === 3) return <span>Transmuting... (Crunch)</span>;
+      return <span>Quenching Ingot...</span>;
     }
-    
+
     if (slottedCount < 3) {
       const remaining = 3 - slottedCount;
-      if (slottedCount === 0) return 'Put in 3 compatible badges';
-      return `Put in ${remaining} more badge${remaining > 1 ? 's' : ''} to forge`;
+      if (slottedCount === 0) return <span>Put in 3 compatible badges</span>;
+      return (
+        <span>
+          Put in {remaining} more badge{remaining > 1 ? 's' : ''} to forge
+        </span>
+      );
     }
 
-    if (!isValid) return 'Incompatible badge selection';
+    if (!isValid) return <span>Incompatible badge selection</span>;
 
     const countLabel = batchCount === 1 ? '1 badge' : `${batchCount} badges`;
-    return `Forge ${countLabel} (${totalCost.toLocaleString()} Ink)`;
+    return (
+      <span className="truncate">
+        Forge {countLabel} ({totalCost.toLocaleString()}{' '}
+        <InkDrop
+          className={
+            isReady ? 'text-white fill-white/30' : 'text-red-400 fill-red-400/25'
+          }
+        />
+        )
+      </span>
+    );
   };
 
   return (
@@ -64,8 +79,8 @@ export default function ForgeAnvilTrigger({
             isReady
               ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-950/60 ring-1 ring-emerald-400/40 active:scale-[0.99]'
               : isForging
-              ? 'bg-neutral-800 text-amber-300 border border-amber-500/50 cursor-wait'
-              : 'bg-neutral-900 border border-neutral-800 text-neutral-500 cursor-not-allowed opacity-60'
+                ? 'bg-neutral-800 text-amber-300 border border-amber-500/50 cursor-wait'
+                : 'bg-neutral-900 border border-neutral-800 text-neutral-500 cursor-not-allowed opacity-60'
           }`}
         >
           <motion.div
@@ -85,22 +100,28 @@ export default function ForgeAnvilTrigger({
                 isForging
                   ? 'text-amber-400'
                   : isReady
-                  ? 'text-white'
-                  : 'text-neutral-500'
+                    ? 'text-white'
+                    : 'text-neutral-500'
               }
             />
           </motion.div>
 
-          <span className="text-[11px] sm:text-xs truncate">{getButtonText()}</span>
+          <span className="text-[11px] sm:text-xs truncate">
+            {renderButtonContent()}
+          </span>
 
-          {isReady && <Sparkles size={14} className="text-emerald-300 animate-pulse shrink-0" />}
+          {isReady && (
+            <Sparkles size={14} className="text-emerald-300 animate-pulse shrink-0" />
+          )}
         </Button>
       </motion.div>
 
       {isValid && !canAfford && (
-        <div className="flex items-center gap-1.5 text-[11px] text-red-400">
-          <AlertCircle size={12} />
-          <span>Insufficient Ink for this batch size.</span>
+        <div className="flex items-center justify-center gap-1.5 text-[11px] text-red-400 text-center">
+          <AlertCircle size={12} className="shrink-0" />
+          <span>
+            Insufficient <InkDrop className="text-red-400 fill-red-400/25" /> for this batch size.
+          </span>
         </div>
       )}
     </div>

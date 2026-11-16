@@ -1,20 +1,25 @@
 // Run inside: frontend/
 // src/components/Dashboard.tsx
 
-import React, { useState, useEffect } from 'react';
-import { useShowcaseStore, type PackType } from '@/store/useShowcaseStore';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useShowcaseStore, type PackType, type Badge } from '@/store/useShowcaseStore';
+import { useQuestStore } from '@/store/useQuestStore';
+import { SEASONAL_CALENDAR_CONFIG } from '@/lib/calendarData';
 import DashboardHeader from './dashboard/DashboardHeader';
-import InventorySummary from './dashboard/InventorySummary';
 import BadgesInventory from './dashboard/BadgesInventory';
 import PacksInventory from './dashboard/PacksInventory';
 import ShowcaseView from './dashboard/ShowcaseView';
-import BadgeActionModal, { type StackedBadgeItem } from './dashboard/BadgeActionModal';
 import Forge from './Forge';
 import Gacha from './Gacha';
 import MobileBottomNav, { type MobileTab } from './dashboard/MobileBottomNav';
 import { Button } from '@/components/ui/button';
 import QuestProgressToast from '@/components/rewards/QuestProgressToast';
 import RewardsModal from './rewards/RewardsModal';
+
+export type StackedBadgeItem = Badge & {
+  count: number;
+  ids: string[];
+};
 
 export default function Dashboard() {
   const currentDay = useShowcaseStore((state) => state.currentDay);
@@ -25,6 +30,11 @@ export default function Dashboard() {
   const stagedBadgeId = useShowcaseStore((state) => state.stagedBadgeId);
   const setStagedBadgeId = useShowcaseStore((state) => state.setStagedBadgeId);
   const cancelInscription = useShowcaseStore((state) => state.cancelInscription);
+  const isDailyFaucetClaimed = useShowcaseStore((state) => state.isDailyFaucetClaimed);
+  const claimedCalendarDays = useShowcaseStore((state) => state.claimedCalendarDays);
+
+  const dailyQuests = useQuestStore((state) => state.dailyQuests);
+  const weeklyQuests = useQuestStore((state) => state.weeklyQuests);
 
   const [isRewardsOpen, setIsRewardsOpen] = useState<boolean>(false);
 
@@ -43,25 +53,21 @@ export default function Dashboard() {
   const [selectedForgeIds, setSelectedForgeIds] = useState<string[]>([]);
   const [isForgeShaking, setIsForgeShaking] = useState<boolean>(false);
 
-  // Standalone Badge Action Modal state (for mobile Badges view or non-workbench clicks)
-  const [actionModalStack, setActionModalStack] = useState<StackedBadgeItem | null>(null);
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mediaQuery = window.matchMedia('(max-width: 1023px)');
     const handleViewportChange = (e: MediaQueryListEvent) => {
       setIsMobile(e.matches);
       if (e.matches) {
-        // Sync mobileTab to activeTab when resizing from desktop down to mobile
-        setMobileTab((prev) =>
-          prev === 'badges' || prev === 'packs' ? activeTab : activeTab
-        );
+        // Sync mobileTab to activeTab (or rewards if modal was open) when resizing down
+        setMobileTab(isRewardsOpen ? 'rewards' : activeTab);
+        setIsRewardsOpen(false);
       }
     };
     setIsMobile(mediaQuery.matches);
     mediaQuery.addEventListener('change', handleViewportChange);
     return () => mediaQuery.removeEventListener('change', handleViewportChange);
-  }, [activeTab]);
+  }, [activeTab, isRewardsOpen]);
 
   // Desktop-only soft-sync: clicking a Showcase slot switches left column from Packs to Badges
   useEffect(() => {
@@ -73,11 +79,25 @@ export default function Dashboard() {
   const totalBadges = Object.keys(badges).length;
   const totalPacks = Object.values(unopenedPacks).reduce((sum, count) => sum + count, 0);
 
+  // Total unclaimed rewards for MobileBottomNav badge
+  const totalUnclaimedRewards = useMemo(() => {
+    const unclaimedQuests =
+      dailyQuests.filter((q) => q.isCompleted && !q.isClaimed).length +
+      weeklyQuests.filter((q) => q.isCompleted && !q.isClaimed).length;
+    const unclaimedFaucet = isDailyFaucetClaimed ? 0 : 1;
+    const currentProgressDay = Math.min(40, currentDay);
+    const claimedSet = new Set(claimedCalendarDays);
+    const unclaimedCalendar = SEASONAL_CALENDAR_CONFIG.filter(
+      (c) => c.day <= currentProgressDay && !claimedSet.has(c.day)
+    ).length;
+
+    return unclaimedQuests + unclaimedFaucet + unclaimedCalendar;
+  }, [dailyQuests, weeklyQuests, isDailyFaucetClaimed, claimedCalendarDays, currentDay]);
+
   // Clear pending Showcase & Forge selections whenever switching workbenches
   const clearAllSelections = () => {
     cancelInscription();
     setSelectedForgeIds([]);
-    setActionModalStack(null);
   };
 
   // Desktop Action Hub tab switcher with desktop-only inventory soft-sync & mobileTab sync
@@ -98,8 +118,8 @@ export default function Dashboard() {
     clearAllSelections();
     setMobileTab(tab);
 
-    if (tab === 'badges' || tab === 'packs') {
-      setInventoryView(tab);
+    if (tab === 'packs') {
+      setInventoryView('packs');
       if (isMobile) {
         document.getElementById('inventory-section')?.scrollIntoView({ behavior: 'smooth' });
       }
@@ -113,6 +133,12 @@ export default function Dashboard() {
       }
     } else if (tab === 'gacha') {
       setActiveTab('gacha');
+      if (isMobile) {
+        requestAnimationFrame(() => {
+          document.getElementById('action-hub-section')?.scrollIntoView({ behavior: 'smooth' });
+        });
+      }
+    } else if (tab === 'rewards') {
       if (isMobile) {
         requestAnimationFrame(() => {
           document.getElementById('action-hub-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -184,32 +210,23 @@ export default function Dashboard() {
       if (targetBadgeId) {
         setStagedBadgeId(targetBadgeId);
       }
-      return;
-    }
-
-    setActionModalStack(stack);
-  };
-
-  const handleModalRouteToShowcase = (badgeId: string) => {
-    clearAllSelections();
-    setActiveTab('showcase');
-    setMobileTab('showcase');
-    setInventoryView('badges');
-    setStagedBadgeId(badgeId);
-    if (isMobile) {
-      requestAnimationFrame(() => {
-        document.getElementById('action-hub-section')?.scrollIntoView({ behavior: 'smooth' });
-      });
     }
   };
 
-  const handleModalRouteToForge = (badgeId: string) => {
+  const handleNavigateActionRoute = (
+    route: 'forge' | 'gacha' | 'showcase',
+    packType?: PackType
+  ) => {
     clearAllSelections();
-    setActiveTab('forge');
-    setMobileTab('forge');
-    setInventoryView('badges');
-    setSelectedForgeIds([badgeId]);
-    if (isMobile) {
+    if (packType) {
+      setSelectedGachaPack(packType);
+    }
+    setActiveTab(route);
+    setMobileTab(route);
+    if (!isMobile) {
+      setInventoryView(route === 'gacha' ? 'packs' : 'badges');
+    } else {
+      setInventoryView('badges');
       requestAnimationFrame(() => {
         document.getElementById('action-hub-section')?.scrollIntoView({ behavior: 'smooth' });
       });
@@ -217,17 +234,19 @@ export default function Dashboard() {
   };
 
   const isSplitWorkbenchMobile = mobileTab === 'showcase' || mobileTab === 'forge';
-  const showInventoryOnMobile =
-    mobileTab === 'badges' || mobileTab === 'packs' || isSplitWorkbenchMobile;
+  const showInventoryOnMobile = mobileTab === 'packs' || isSplitWorkbenchMobile;
   const showHubOnMobile =
-    mobileTab === 'showcase' || mobileTab === 'forge' || mobileTab === 'gacha';
+    mobileTab === 'showcase' ||
+    mobileTab === 'forge' ||
+    mobileTab === 'gacha' ||
+    mobileTab === 'rewards';
 
   return (
     <div className="min-h-screen bg-black text-neutral-50 flex flex-col items-center">
       <QuestProgressToast />
 
-      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5 pb-24 lg:pb-6 flex flex-col gap-3 sm:gap-3.5">
-        {/* Navigation Header */}
+      <div className="w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-3 lg:py-5 pb-24 lg:pb-6 flex flex-col gap-3 sm:gap-3.5">
+        {/* Sticky Navigation Header & Public Feed */}
         <DashboardHeader
           currentDay={currentDay}
           inkBalance={inkBalance}
@@ -235,7 +254,7 @@ export default function Dashboard() {
         />
 
         {/* 2. Main Workspace: Viewport-clamped on desktop so Left Inventory & Right Action Hub stay locked in height */}
-        <div className="w-full flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 relative items-stretch lg:h-[calc(100vh-145px)] lg:min-h-[560px] lg:max-h-[820px]">
+        <div className="w-full flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 relative items-stretch lg:h-[calc(100vh-145px)] lg:min-h-[640px] lg:max-h-[960px] my-auto">
           {/* Action Hub Column */}
           <section
             id="action-hub-section"
@@ -279,27 +298,38 @@ export default function Dashboard() {
                     : 'text-neutral-400 hover:text-neutral-100 hover:bg-neutral-800/50 border border-transparent hover:border-neutral-700/60'
                 }`}
               >
-                Gacha Shrine
+                Open Packs
               </Button>
             </div>
 
             {/* Action Hub Card */}
             <div className="w-full border border-neutral-800 rounded-xl bg-neutral-950/70 shadow-lg min-h-0 h-auto lg:flex-1 lg:h-full flex flex-col justify-center overflow-hidden">
-              {activeTab === 'showcase' && <ShowcaseView />}
-              {activeTab === 'forge' && (
-                <Forge
-                  selectedBadgeIds={selectedForgeIds}
-                  onRemoveFromSlot={handleRemoveFromSlot}
-                  onClearSlots={handleClearSlots}
-                  onSelectBadgeIds={(ids) => setSelectedForgeIds(ids)}
-                  isShaking={isForgeShaking}
+              {isMobile && mobileTab === 'rewards' ? (
+                <RewardsModal
+                  isOpen={true}
+                  mode="inline"
+                  onClose={() => {}}
+                  onNavigateActionRoute={handleNavigateActionRoute}
                 />
-              )}
-              {activeTab === 'gacha' && (
-                <Gacha
-                  selectedPackType={selectedGachaPack}
-                  onSelectPackType={setSelectedGachaPack}
-                />
+              ) : (
+                <>
+                  {activeTab === 'showcase' && <ShowcaseView />}
+                  {activeTab === 'forge' && (
+                    <Forge
+                      selectedBadgeIds={selectedForgeIds}
+                      onRemoveFromSlot={handleRemoveFromSlot}
+                      onClearSlots={handleClearSlots}
+                      onSelectBadgeIds={(ids) => setSelectedForgeIds(ids)}
+                      isShaking={isForgeShaking}
+                    />
+                  )}
+                  {activeTab === 'gacha' && (
+                    <Gacha
+                      selectedPackType={selectedGachaPack}
+                      onSelectPackType={setSelectedGachaPack}
+                    />
+                  )}
+                </>
               )}
             </div>
           </section>
@@ -342,14 +372,6 @@ export default function Dashboard() {
             {/* Dynamic Viewport Content */}
             {inventoryView === 'badges' ? (
               <div className="w-full flex flex-col gap-4 lg:flex-1 lg:min-h-0">
-                <div
-                  className={`w-full shrink-0 ${
-                    isSplitWorkbenchMobile ? 'hidden lg:block' : 'block'
-                  }`}
-                >
-                  <InventorySummary badges={badges} />
-                </div>
-
                 <div className="w-full lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
                   <BadgesInventory
                     badges={badges}
@@ -370,35 +392,22 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <BadgeActionModal
-        stack={actionModalStack}
-        onClose={() => setActionModalStack(null)}
-        onSelectShowcase={handleModalRouteToShowcase}
-        onSelectForge={handleModalRouteToForge}
-      />
-
-      <RewardsModal
-        isOpen={isRewardsOpen}
-        onClose={() => setIsRewardsOpen(false)}
-        onNavigateActionRoute={(route, packType) => {
-          clearAllSelections();
-          if (packType) {
-            setSelectedGachaPack(packType);
-          }
-          setActiveTab(route);
-          setMobileTab(route);
-          if (!isMobile) {
-            setInventoryView(route === 'gacha' ? 'packs' : 'badges');
-          }
-        }}
-      />
+      {/* Desktop Modal Overlay for Rewards */}
+      {!isMobile && (
+        <RewardsModal
+          isOpen={isRewardsOpen}
+          mode="modal"
+          onClose={() => setIsRewardsOpen(false)}
+          onNavigateActionRoute={handleNavigateActionRoute}
+        />
+      )}
 
       {/* Mobile-Only Bottom Navigation Dock */}
       <MobileBottomNav
         currentTab={mobileTab}
         onSelectTab={handleSelectMobileTab}
-        badgeCount={totalBadges}
         packCount={totalPacks}
+        unclaimedRewardsCount={totalUnclaimedRewards}
       />
     </div>
   );

@@ -5,7 +5,8 @@ import React from 'react';
 import type { Quest } from '@/store/useQuestStore';
 import type { PackType } from '@/store/useShowcaseStore';
 import { Button } from '@/components/ui/button';
-import { Droplet, Check, ArrowRight, RefreshCw } from 'lucide-react';
+import { Check, ArrowRight, RefreshCw } from 'lucide-react';
+import InkDrop from '@/components/ui/InkDrop';
 
 interface DailyQuestCardProps {
   quest: Quest;
@@ -43,7 +44,6 @@ export default function DailyQuestCard({
   const route = getActionRoute();
   const targetPack = getTargetPackType();
 
-  // Tier color styling: Emerald for Easy, Blue for Medium, Purple for Weekly
   const getTheme = () => {
     if (quest.isWeekly) {
       return {
@@ -110,11 +110,10 @@ export default function DailyQuestCard({
         </div>
       </div>
 
-      {/* Bottom/Right: Reward & CTA Section */}
+      {/* Bottom/Right: Postfix Reward & CTA Section */}
       <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-neutral-800/50">
-        <div className="flex items-center gap-1 text-xs font-mono font-bold text-emerald-400 shrink-0">
-          <Droplet size={12} className="text-emerald-400" />
-          <span>+{quest.rewardInk} Ink</span>
+        <div className="text-xs font-mono font-bold text-emerald-400 shrink-0 whitespace-nowrap">
+          +{quest.rewardInk} <InkDrop />
         </div>
 
         {quest.isClaimed ? (

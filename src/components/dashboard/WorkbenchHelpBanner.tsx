@@ -8,7 +8,7 @@ import { useShowcaseStore, type HelpTipId } from '@/store/useShowcaseStore';
 interface WorkbenchHelpBannerProps {
   tipId: HelpTipId;
   title: string;
-  bullets: string[];
+  bullets: React.ReactNode[];
 }
 
 export default function WorkbenchHelpBanner({
